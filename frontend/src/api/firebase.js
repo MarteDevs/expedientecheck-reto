@@ -102,18 +102,28 @@ export async function setCachedQuery(rawKey, data) {
 }
 
 /**
- * Guarda una configuración de filtros como Favorito en Firestore
+ * Guarda una configuración de filtros y sus resultados como Favorito en Firestore
  * @param {string} name - Nombre descriptivo para el favorito
  * @param {Object} filters - Objeto con los filtros aplicados
+ * @param {Object} resultData - Datos resultantes de la consulta { records, total, fields }
  */
-export async function saveFavorite(name, filters) {
+export async function saveFavorite(name, filters, resultData = null) {
   try {
     const favoritesRef = collection(db, 'favorites');
-    await addDoc(favoritesRef, {
+    const docData = {
       name: name,
       filters: filters,
       createdAt: serverTimestamp()
-    });
+    };
+
+    // Guardar los resultados (limitados a 100 registros para no exceder el límite de Firestore)
+    if (resultData && resultData.records) {
+      docData.records = resultData.records.slice(0, 100);
+      docData.total = resultData.total || resultData.records.length;
+      docData.fields = resultData.fields || [];
+    }
+
+    await addDoc(favoritesRef, docData);
     console.log('[Firestore] Favorito guardado con éxito');
     return true;
   } catch (error) {

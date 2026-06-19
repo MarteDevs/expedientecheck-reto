@@ -326,7 +326,13 @@ function handleClearFilters() {
 }
 
 async function handleSaveFavorite(name) {
-  const success = await saveFavorite(name, state.filters);
+  // Pasar los resultados actuales junto con los filtros
+  const resultData = {
+    records: state.records,
+    total: state.total,
+    fields: state.fields
+  };
+  const success = await saveFavorite(name, state.filters, resultData);
   if (success) {
     state.favorites = await getFavorites(); // Recargar favoritos
     renderSearch();
@@ -342,7 +348,18 @@ function handleApplyFavorite(favoriteId) {
     state.filters = { ...fav.filters };
     state.searchQuery = '';
     state.offset = 0;
-    loadData();
+
+    // Si el favorito tiene resultados guardados, mostrarlos al instante
+    if (fav.records && fav.records.length > 0) {
+      state.records = fav.records;
+      state.total = fav.total || fav.records.length;
+      state.fields = fav.fields || state.fields;
+      renderSearch();
+      renderTable();
+    } else {
+      // Si no tiene resultados, consultar la API con los filtros
+      loadData();
+    }
   }
 }
 
