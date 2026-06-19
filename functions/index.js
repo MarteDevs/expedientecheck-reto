@@ -37,7 +37,7 @@ function generateCacheKey(queryParams) {
 
 exports.mefProxy = onRequest(
   {
-    region: "us-central1",
+    region: "southamerica-east1",
     maxInstances: 10,
     memory: "256MiB",
     timeoutSeconds: 300, // 5 minutos (300 segundos) para soportar la lentitud del MEF
