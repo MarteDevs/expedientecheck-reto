@@ -267,6 +267,82 @@ export async function fetchMefData(options = {}) {
 }
 
 /**
+ * Obtiene las estadísticas globales (PIA, PIM, DEVENGADO) para los filtros actuales,
+ * ignorando la paginación y resolviendo el problema de PIA/PIM en el Mes 0.
+ */
+export async function fetchGlobalStats(params = {}) {
+  const {
+    resourceId = DEFAULT_RESOURCE_ID,
+    query = '',
+    filters = {},
+  } = params;
+
+  const conditionsAll = [];
+  const activeFilters = Object.entries(filters).filter(([, v]) => v && v !== '');
+  
+  for (const [key, value] of activeFilters) {
+    conditionsAll.push(`"${key}" LIKE '${value}'`);
+  }
+  
+  if (query && query.trim()) {
+    const q = query.trim().toUpperCase();
+    const textFields = [
+      'EJECUTORA_NOMBRE',
+      'PRODUCTO_PROYECTO_NOMBRE',
+      'ACTIVIDAD_ACCION_OBRA_NOMBRE',
+      'PLIEGO_NOMBRE',
+    ];
+    const queryCond = textFields.map((f) => `"${f}" LIKE '%${q}%'`).join(' OR ');
+    conditionsAll.push(`(${queryCond})`);
+  }
+
+  // Para PIA/PIM excluimos el filtro de mes (ya que su total se guarda en el mes 0)
+  const conditionsNoMonth = [];
+  for (const [key, value] of activeFilters) {
+    if (key !== 'MES_EJE') {
+      conditionsNoMonth.push(`"${key}" LIKE '${value}'`);
+    }
+  }
+  if (query && query.trim()) {
+    const q = query.trim().toUpperCase();
+    const textFields = [
+      'EJECUTORA_NOMBRE',
+      'PRODUCTO_PROYECTO_NOMBRE',
+      'ACTIVIDAD_ACCION_OBRA_NOMBRE',
+      'PLIEGO_NOMBRE',
+    ];
+    const queryCond = textFields.map((f) => `"${f}" LIKE '%${q}%'`).join(' OR ');
+    conditionsNoMonth.push(`(${queryCond})`);
+  }
+
+  const whereAll = conditionsAll.length > 0 ? `WHERE ${conditionsAll.join(' AND ')}` : '';
+  const whereNoMonth = conditionsNoMonth.length > 0 ? `WHERE ${conditionsNoMonth.join(' AND ')}` : '';
+
+  const sqlDevengado = `SELECT SUM(CAST("MONTO_DEVENGADO" AS float)) as dev FROM "${resourceId}" ${whereAll}`;
+  const sqlPimPia = `SELECT SUM(CAST("MONTO_PIA" AS float)) as pia, SUM(CAST("MONTO_PIM" AS float)) as pim FROM "${resourceId}" ${whereNoMonth}`;
+
+  try {
+    const [resDev, resPimPia] = await Promise.all([
+      fetch(getFetchUrl(new URL(API_SQL_URL + '?sql=' + encodeURIComponent(sqlDevengado), window.location.origin).toString()), { headers: { Accept: 'application/json' } }).then(r => r.json()),
+      fetch(getFetchUrl(new URL(API_SQL_URL + '?sql=' + encodeURIComponent(sqlPimPia), window.location.origin).toString()), { headers: { Accept: 'application/json' } }).then(r => r.json())
+    ]);
+
+    const dev = resDev?.result?.records?.[0]?.dev || resDev?.records?.[0]?.dev || 0;
+    const pia = resPimPia?.result?.records?.[0]?.pia || resPimPia?.records?.[0]?.pia || 0;
+    const pim = resPimPia?.result?.records?.[0]?.pim || resPimPia?.records?.[0]?.pim || 0;
+
+    return {
+      totalPIA: pia,
+      totalPIM: pim,
+      totalDevengado: dev
+    };
+  } catch (err) {
+    console.error('Error fetching global stats:', err);
+    return { totalPIA: 0, totalPIM: 0, totalDevengado: 0 };
+  }
+}
+
+/**
  * Obtiene los valores únicos de un campo para poblar filtros
  * @param {string} fieldName - Nombre del campo
  * @param {string} [resourceId] - ID del recurso

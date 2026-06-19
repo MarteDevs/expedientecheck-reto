@@ -5,45 +5,48 @@ import html2pdf from 'html2pdf.js';
 
 let chartTrend = null;
 let chartDonut = null;
+let chartFunnel = null;
+let chartProjects = null;
 
 export async function renderAnalyticsDashboard(container, options = {}) {
   const { filters, searchQuery, projectPIM, projectPIA } = options;
 
+  // Construir texto de filtros activos
+  const activeFiltersStr = Object.entries(filters || {})
+    .filter(([_, val]) => val !== '')
+    .map(([key, val]) => `${key.replace('_NOMBRE', '')}: ${val}`)
+    .join(' | ');
+    
+  const filterSubtitle = searchQuery 
+    ? `Búsqueda: "${searchQuery}" ${activeFiltersStr ? '| ' + activeFiltersStr : ''}` 
+    : (activeFiltersStr || 'Todos los registros (Sin filtros)');
+
   container.innerHTML = `
     <div class="analytics-dashboard">
-      <div class="analytics-header">
-        <h2>Dashboard Analítico</h2>
-        <div class="analytics-actions">
-          <button id="btn-analyze" class="btn-export" style="background: var(--color-primary); color: white; border: none;">
-            <span>🚀</span> Analizar Filtros Actuales
-          </button>
-          <button id="btn-export-csv" class="btn-export" style="display: none;">
-            <span>📥</span> Exportar CSV
-          </button>
-          <button id="btn-export-pdf" class="btn-export" style="display: none;">
-            <span>🖨️</span> Exportar PDF
-          </button>
+      <div class="analytics-header" style="align-items: flex-start; flex-direction: column; gap: 0.5rem;">
+        <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
+          <h2>Dashboard Analítico</h2>
+          <div class="analytics-actions">
+            <button id="btn-export-pdf" class="btn-export" style="display: none;">
+              <span>🖨️</span> Exportar PDF
+            </button>
+          </div>
         </div>
+        <p style="font-size: var(--font-size-sm); color: var(--color-text-muted);">
+          <span>🔍 Analizando:</span> <strong>${filterSubtitle}</strong>
+        </p>
       </div>
       
       <div id="analytics-content" style="grid-column: span 12;">
-        <div class="empty-state">
-          <div class="empty-state__icon">📊</div>
-          <p class="empty-state__text">Haz clic en "Analizar Filtros Actuales" para procesar y visualizar los datos.</p>
-        </div>
+        <div class="loading-spinner"></div>
+        <p style="text-align: center; color: var(--color-text-muted); margin-top: var(--space-2)">
+          Procesando datos para análisis avanzado...
+        </p>
       </div>
     </div>
   `;
 
-  document.getElementById('btn-analyze').addEventListener('click', async () => {
-    document.getElementById('analytics-content').innerHTML = `
-      <div class="loading-spinner"></div>
-      <p style="text-align: center; color: var(--color-text-muted); margin-top: var(--space-2)">
-        Procesando datos para análisis avanzado...
-      </p>
-    `;
-
-    try {
+  try {
       // 1. Obtener todos los registros posibles para el análisis (limit alto)
       const hasQuery = Boolean(searchQuery && searchQuery.trim());
       const hasActiveFilters = Object.values(filters || {}).some(val => val !== '');
@@ -71,7 +74,6 @@ export async function renderAnalyticsDashboard(container, options = {}) {
       }
 
       // Mostrar botones de exportación
-      document.getElementById('btn-export-csv').style.display = 'flex';
       document.getElementById('btn-export-pdf').style.display = 'flex';
 
       // Procesar datos para KPIs
@@ -96,6 +98,22 @@ export async function renderAnalyticsDashboard(container, options = {}) {
             </div>
           </div>
 
+          <!-- Embudo de Fases -->
+          <div class="analytics-module module-funnel">
+            <h3 class="analytics-module__title">🔻 Embudo de Ejecución</h3>
+            <div style="position: relative; height: 350px; width: 100%;">
+              <canvas id="chart-funnel"></canvas>
+            </div>
+          </div>
+
+          <!-- Top 5 Proyectos -->
+          <div class="analytics-module module-projects">
+            <h3 class="analytics-module__title">🏗️ Top 5 Proyectos / Actividades</h3>
+            <div style="position: relative; height: 350px; width: 100%;">
+              <canvas id="chart-projects"></canvas>
+            </div>
+          </div>
+
           <!-- Clasificación de Gasto -->
           <div class="analytics-module module-donut">
             <h3 class="analytics-module__title">🍩 Clasificación del Gasto (Genérica)</h3>
@@ -117,7 +135,6 @@ export async function renderAnalyticsDashboard(container, options = {}) {
       initCharts(records, kpiData.projectPIM);
 
       // Event Listeners para exportar
-      document.getElementById('btn-export-csv').onclick = () => exportToCSV(records);
       document.getElementById('btn-export-pdf').onclick = exportToPDF;
 
     } catch (error) {
@@ -128,7 +145,6 @@ export async function renderAnalyticsDashboard(container, options = {}) {
         </div>
       `;
     }
-  });
 }
 
 function calculateKPIs(records) {
@@ -231,6 +247,8 @@ function initCharts(records, projectPIM) {
   // Limpiar gráficos anteriores si existen
   if (chartTrend) chartTrend.destroy();
   if (chartDonut) chartDonut.destroy();
+  if (chartFunnel) chartFunnel.destroy();
+  if (chartProjects) chartProjects.destroy();
 
   Chart.defaults.color = '#94a3b8';
   Chart.defaults.font.family = "'Inter', sans-serif";
@@ -380,27 +398,124 @@ function initCharts(records, projectPIM) {
       cutout: '70%'
     }
   });
-}
 
-function exportToCSV(records) {
-  if (!records || records.length === 0) return;
+  // --- Gráfico de Embudo (Fases del Gasto) ---
+  const ctxFunnel = document.getElementById('chart-funnel');
+  let sumPIM = 0, sumCert = 0, sumComp = 0, sumDev = 0, sumGir = 0;
   
-  const headers = Object.keys(records[0]).join(',');
-  const rows = records.map(r => {
-    return Object.values(r).map(v => {
-      // Escape commas in values
-      const stringValue = String(v).replace(/"/g, '""');
-      return `"${stringValue}"`;
-    }).join(',');
-  }).join('\\n');
+  // Usar los registros mensuales (executionRecords equivalente) para sumar
+  const executionRecords = monthlyRecords.length > 0 ? monthlyRecords : records;
   
-  const csvContent = "data:text/csv;charset=utf-8," + encodeURIComponent(headers + "\\n" + rows);
-  const link = document.createElement("a");
-  link.setAttribute("href", csvContent);
-  link.setAttribute("download", "expedientecheck_analisis.csv");
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+  // PIM se saca del totalProjectPIM que ya recibimos por parámetro (projectPIM)
+  sumPIM = projectPIM;
+  
+  executionRecords.forEach(r => {
+    sumCert += parseFloat(r.MONTO_CERTIFICADO) || 0;
+    sumComp += parseFloat(r.MONTO_COMPROMETIDO) || 0;
+    sumDev += parseFloat(r.MONTO_DEVENGADO) || 0;
+    sumGir += parseFloat(r.MONTO_GIRADO) || 0;
+  });
+
+  chartFunnel = new Chart(ctxFunnel, {
+    type: 'bar',
+    data: {
+      labels: ['PIM', 'Cert', 'Comprom', 'Deveng', 'Girado'],
+      datasets: [{
+        label: 'Monto (S/)',
+        data: [sumPIM, sumCert, sumComp, sumDev, sumGir],
+        backgroundColor: [
+          'rgba(148, 163, 184, 0.5)', // PIM (Gris)
+          'rgba(99, 102, 241, 0.8)',  // Certificado (Indigo)
+          'rgba(20, 184, 166, 0.8)',  // Comprometido (Teal)
+          'rgba(245, 158, 11, 0.8)',  // Devengado (Amber)
+          'rgba(16, 185, 129, 0.8)'   // Girado (Emerald)
+        ],
+        borderRadius: 4
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              return 'S/ ' + formatCompactCurrency(context.raw).replace('S/ ', '');
+            }
+          }
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            callback: function(value) {
+              return formatCompactCurrency(value).replace('S/ ', '');
+            }
+          }
+        }
+      }
+    }
+  });
+
+  // --- Top 5 Proyectos/Actividades ---
+  const proyectosAgrupado = {};
+  executionRecords.forEach(r => {
+    const proyecto = r.PRODUCTO_PROYECTO_NOMBRE || r.ACTIVIDAD_ACCION_OBRA_NOMBRE || 'Sin Especificar';
+    const monto = parseFloat(r.MONTO_DEVENGADO) || 0;
+    if (monto > 0) {
+      if (!proyectosAgrupado[proyecto]) proyectosAgrupado[proyecto] = 0;
+      proyectosAgrupado[proyecto] += monto;
+    }
+  });
+
+  const sortedProyectos = Object.entries(proyectosAgrupado)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
+
+  const ctxProjects = document.getElementById('chart-projects');
+  chartProjects = new Chart(ctxProjects, {
+    type: 'bar',
+    data: {
+      labels: sortedProyectos.map(item => {
+        // Truncar nombres muy largos
+        const name = item[0];
+        return name.length > 25 ? name.substring(0, 25) + '...' : name;
+      }),
+      datasets: [{
+        label: 'Devengado (S/)',
+        data: sortedProyectos.map(item => item[1]),
+        backgroundColor: 'rgba(99, 102, 241, 0.7)',
+        borderRadius: 4
+      }]
+    },
+    options: {
+      indexAxis: 'y', // Hace que las barras sean horizontales
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              return 'S/ ' + formatCompactCurrency(context.raw).replace('S/ ', '');
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          beginAtZero: true,
+          ticks: {
+            callback: function(value) {
+              return formatCompactCurrency(value).replace('S/ ', '');
+            }
+          }
+        }
+      }
+    }
+  });
 }
 
 function exportToPDF() {

@@ -1190,6 +1190,16 @@ a:hover {
   min-height: 400px;
 }
 
+.module-funnel {
+  grid-column: span 4;
+  min-height: 400px;
+}
+
+.module-projects {
+  grid-column: span 8;
+  min-height: 400px;
+}
+
 .module-donut {
   grid-column: span 4;
   min-height: 400px;
@@ -1283,6 +1293,8 @@ a:hover {
 @media (max-width: 1024px) {
   .module-trend { grid-column: span 12; }
   .module-donut { grid-column: span 12; }
+  .module-funnel { grid-column: span 12; }
+  .module-projects { grid-column: span 12; }
 }
 
 @media (max-width: 768px) {
