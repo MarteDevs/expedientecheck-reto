@@ -40,7 +40,7 @@ exports.mefProxy = onRequest(
     region: "us-central1",
     maxInstances: 10,
     memory: "256MiB",
-    timeoutSeconds: 120, // La API del MEF puede tardar hasta 40s
+    timeoutSeconds: 300, // 5 minutos (300 segundos) para soportar la lentitud del MEF
   },
   (req, res) => {
     // Aplicar CORS

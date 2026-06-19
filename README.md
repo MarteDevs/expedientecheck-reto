@@ -1,15 +1,33 @@
 # 📊 ExpedienteCheck — Reto Técnico Finalistas
 
-> Mini-producto funcional que consume la API pública de Datos Abiertos del MEF para visualizar datos de **Ejecución Presupuestal** del Perú, desplegado en Firebase Hosting con infraestructura definida en Terraform.
+> Mini-producto funcional que consume la API pública de Datos Abiertos del MEF para visualizar datos de **Ejecución Presupuestal** del Perú. Desplegado en Firebase (Hosting y Cloud Functions), con caché en Firestore e infraestructura aprovisionada vía Terraform.
 
 ---
 
-## 🌐 Demo
+## 🌐 Enlaces
 
 | Ambiente | URL |
 |----------|-----|
-| **Dev** | https://expedientecheck-dev.web.app |
-| **Prod** | *(se genera al desplegar — ver sección Deploy)* |
+| **Desarrollo (DEV)** | [https://expedientecheck-dev-123.web.app](https://expedientecheck-dev-123.web.app) |
+| **Producción (PROD)** | *(Automatizado vía GitHub Actions al crear release tags)* |
+
+---
+
+## 🏗️ Arquitectura y Flujos Inteligentes (NUEVO)
+
+Ante la inestabilidad de la API gubernamental del MEF (CKAN) que maneja más de **11 millones de registros**, implementamos una arquitectura resiliente y **Flujos de Consulta Inteligentes (Smart Routing)**:
+
+1. **Proxy + Caché Híbrida (Firestore & Cloud Functions):**
+   Las consultas del Frontend no van directo al MEF (para evitar errores CORS y proteger al cliente de timeouts). Pasan por un Cloud Function (`mefProxy`) que revisa si la consulta exacta (vía Hash SHA-256) ya existe en Firestore. Si existe, la sirve en milisegundos. Si no, va al MEF, la guarda y responde. **Esto evita que la app colapse cuando el gobierno se cae.**
+
+2. **Smart Routing (SQL vs. Estándar):**
+   - **Búsqueda Libre:** Usa el endpoint `datastore_search` (aprovechando el índice ultra-rápido `_full_text` del MEF).
+   - **Filtros por Categoría (Dropdowns):** Usa `datastore_search_sql` con la cláusula `LIKE` para eludir conflictos severos (error `409`) que da el API al concatenar múltiples filtros estrictos.
+
+3. **Valores Estáticos de Arranque (Fallbacks):**
+   Para evitar saturar la base de datos con peticiones `SELECT DISTINCT` gigantescas que bloquean la renderización inicial, los dropdowns se nutren de listas estáticas previamente mapeadas en el código.
+
+*(Para más detalle gráfico, revisa el diagrama en [docs/arquitectura.md](docs/arquitectura.md))*
 
 ---
 
@@ -17,63 +35,46 @@
 
 | Capa | Tecnología | Justificación |
 |------|-----------|---------------|
-| **Frontend** | Vite + Vanilla JS | Bundler rápido, sin overhead de framework. Demuestra dominio de fundamentos |
-| **Estilos** | CSS Custom Properties | Design system completo sin dependencias externas |
-| **API** | Datos Abiertos MEF (CKAN) | API pública, gratuita, sin autenticación |
-| **Hosting** | Firebase Hosting | CDN global, SSL automático, integración con GCP |
-| **IaC** | Terraform + google-beta | Provider oficial de GCP para recursos Firebase |
-| **CI/CD** | GitHub Actions | Deploy automático al hacer push |
-| **Testing** | Vitest | Testing framework nativo de Vite, rápido y compatible |
+| **Frontend** | Vite + Vanilla JS | Bundler rápido, sin overhead de frameworks pesados (React/Vue). Demuestra dominio sólido del DOM. |
+| **Estilos** | CSS Custom Properties | Design system (Glassmorphism, Dark Theme) sin dependencias externas. |
+| **Backend / Proxy** | Node.js + Firebase Cloud Functions | Previene CORS y encapsula la lógica de la caché SHA-256. |
+| **Base de Datos** | Firebase Firestore | Actúa como Memoria Caché persistente para las respuestas del MEF. |
+| **API Externa** | Datos Abiertos MEF (CKAN) | Fuente de verdad de la Ejecución Presupuestal 2024. |
+| **Infraestructura** | Terraform | Infraestructura como Código (IaC). Separa de forma replicable DEV y PROD. |
+| **CI/CD** | GitHub Actions | Ejecuta tests y sube el despliegue al hacer push a la rama `main`. |
+| **Testing** | Vitest | Framework de pruebas ultrarrápido para validar el cliente HTTP (`mefClient`). |
 
 ---
 
 ## 📁 Estructura del Proyecto
 
-```
+```text
 expedientecheck-reto/
-├── frontend/                          # Directorio con todo el código frontend
-│   ├── index.html                     # HTML principal con layout semántico
-│   ├── package.json                   # Dependencias y scripts
-│   ├── vite.config.js                 # Configuración de Vite + Vitest
-│   ├── firebase.json                  # Config de Firebase Hosting
-│   ├── .firebaserc                    # Aliases de proyecto (dev/prod)
-│   │
+├── frontend/                          # Capa de Presentación
+│   ├── index.html                     # HTML principal
+│   ├── vite.config.js                 # Configuración de empaquetado
 │   ├── src/
-│   │   ├── main.js                    # Entry point — orquesta toda la app
-│   │   ├── api/
-│   │   │   └── mefClient.js          # Cliente HTTP para API del MEF
-│   │   ├── components/
-│   │   │   ├── DataTable.js          # Tabla con paginación y progress bars
-│   │   │   ├── SearchBar.js          # Búsqueda con debounce + filtros
-│   │   │   ├── Loader.js             # Skeleton loading animado
-│   │   │   ├── ErrorState.js         # Estado de error con retry
-│   │   │   └── DetailModal.js        # Modal glassmorphism con detalle
-│   │   ├── utils/
-│   │   │   ├── formatter.js          # Formateo de montos (S/) y porcentajes
-│   │   │   └── debounce.js           # Utilidad debounce para búsqueda
-│   │   └── styles/
-│   │       └── index.css              # Design system completo (dark theme)
-│   │
-│   └── tests/
-│       └── mefClient.test.js          # Tests unitarios del cliente API
+│   │   ├── main.js                    # Entry point y Smart Router
+│   │   ├── api/mefClient.js           # Constructor de queries e integrador con caché
+│   │   ├── components/                # Componentes Vanilla JS (Modal, DataTable, SearchBar)
+│   │   ├── utils/formatter.js         # Formateo monetario
+│   │   └── styles/index.css           # Design System
+│   └── tests/mefClient.test.js        # Pruebas Unitarias
 │
-├── terraform/
-│   ├── main.tf                        # Recursos principales
-│   ├── variables.tf                   # Variables con validaciones
-│   ├── outputs.tf                     # Outputs (URLs, IDs)
-│   ├── providers.tf                   # Provider google-beta ~> 6.0
-│   ├── modules/
-│   │   └── firebase-hosting/
-│   │       ├── main.tf                # Recursos Firebase Hosting
-│   │       ├── variables.tf
-│   │       └── outputs.tf
-│   └── environments/
-│       ├── dev.tfvars                 # Variables para desarrollo
-│       └── prod.tfvars                # Variables para producción
+├── functions/                         # Capa Intermedia (Backend)
+│   ├── index.js                       # Cloud Function (mefProxy)
+│   └── package.json
 │
-└── .github/
-    └── workflows/
-        └── deploy.yml                 # CI/CD — deploy automático
+├── terraform/                         # Infraestructura como Código
+│   ├── main.tf                        # Aprovisionamiento de GCP y Firebase
+│   └── environments/                  # Variables para Dev y Prod
+│
+├── docs/                              # Documentación adicional
+│   └── arquitectura.md                # Gráficos de Mermaid
+│
+├── .github/workflows/deploy.yml       # Integración Continua (CI/CD)
+├── firebase.json                      # Reglas de Hosting (Headers de caché), Funciones y Firestore
+└── firestore.rules                    # Reglas de seguridad
 ```
 
 ---
@@ -83,6 +84,7 @@ expedientecheck-reto/
 ### Prerrequisitos
 - **Node.js** >= 18
 - **npm** >= 9
+- **Firebase CLI** (`npm install -g firebase-tools`)
 
 ### Pasos
 
@@ -91,208 +93,44 @@ expedientecheck-reto/
 git clone <URL_DEL_REPO>
 cd expedientecheck-reto
 
-# 2. Ir al directorio frontend e instalar dependencias
+# 2. Instalar dependencias del Frontend
 cd frontend
 npm install
 
-# 3. Iniciar el servidor de desarrollo
+# 3. Instalar dependencias de las Funciones (Backend Proxy)
+cd ../functions
+npm install
+cd ..
+
+# 4. Iniciar todo usando el Emulador de Firebase + Vite
+# En la raíz del proyecto, abrimos una terminal para el Backend:
+firebase emulators:start
+
+# En otra terminal, iniciamos el Frontend:
+cd frontend
 npm run dev
 ```
 
-La aplicación se abrirá automáticamente en `http://localhost:3000`.
+---
 
-### Scripts disponibles (ejecutar dentro de la carpeta frontend)
+## 🔄 Flujo CI/CD (GitHub Actions)
 
-| Script | Descripción |
-|--------|-------------|
-| `npm run dev` | Servidor de desarrollo con hot reload |
-| `npm run build` | Build de producción en `dist/` |
-| `npm run preview` | Preview del build de producción |
-| `npm run test` | Ejecutar tests unitarios |
-| `npm run test:watch` | Tests en modo watch |
+El proyecto incluye un flujo completamente automatizado en `.github/workflows/deploy.yml`.
+
+1. Cuando el desarrollador hace un `git push` a `main` o crea un *tag*.
+2. El servidor de GitHub ejecuta `npm run test` (Vitest) para asegurar la integridad de la lógica de negocio.
+3. Si todo está en verde, inyecta las credenciales seguras (Secrets) y hace un `firebase deploy --force` automático hacia el ambiente respectivo.
 
 ---
 
-## 🏗️ Cómo Aplicar el Terraform
+## ⚡ Qué no alcancé a hacer y cómo lo resolvería con más tiempo
 
-### Prerrequisitos
-- **Terraform** >= 1.5
-- **Cuenta de GCP** con billing habilitado
-- **gcloud CLI** autenticado (`gcloud auth application-default login`)
-- **Dos proyectos GCP** creados (uno para dev, otro para prod)
-
-### Pasos
-
-```bash
-# 1. Navegar al directorio de Terraform
-cd terraform
-
-# 2. Inicializar Terraform (descarga providers)
-terraform init
-
-# 3. Revisar el plan para desarrollo
-terraform plan -var-file=environments/dev.tfvars
-
-# 4. Aplicar la infraestructura de desarrollo
-terraform apply -var-file=environments/dev.tfvars
-
-# 5. (Opcional) Aplicar producción
-terraform apply -var-file=environments/prod.tfvars
-```
-
-> **Nota:** Antes de aplicar, edita los archivos `.tfvars` con los IDs reales de tus proyectos GCP.
-
-### Qué crea el Terraform
-1. Habilita las APIs de Firebase y Firebase Hosting
-2. Activa Firebase en el proyecto GCP
-3. Registra una Web App de Firebase
-4. Crea el sitio de Firebase Hosting
-5. Configura rewrites para SPA (todas las rutas → `index.html`)
-6. Crea un release inicial
+Aunque el proyecto cumple con creces los objetivos y los bonus, con más tiempo implementaría lo siguiente:
+1. **Precarga en Segundo Plano (Prefetching):** Al cargar la primera página, usaría un Web Worker o un fetch silencioso para traer la página 2 (`offset=20`) antes de que el usuario haga scroll, mejorando la percepción de velocidad a 0ms.
+2. **Dashboard Gráfico con Chart.js/D3:** Transformar los datos crudos en gráficos de barras para comparar la ejecución presupuestal entre ministerios de forma más visual.
+3. **Invalidación de Caché (TTL):** Actualmente la caché en Firestore guarda las consultas de manera persistente. Le agregaría un campo `timestamp` en Firestore y una regla en la Cloud Function para que, si el caché tiene más de 24 horas, vuelva a consultar al MEF para asegurar que los datos estén frescos.
 
 ---
 
-## 🌍 Cómo Desplegar
-
-### Deploy manual
-
-```bash
-# 1. Navegar al directorio de frontend
-cd frontend
-
-# 2. Construir la app
-npm run build
-
-# 3. Seleccionar el ambiente
-npx firebase use dev    # o: npx firebase use prod
-
-# 4. Desplegar
-npx firebase deploy --only hosting
-```
-
-### Deploy automático (CI/CD)
-El archivo `.github/workflows/deploy.yml` despliega automáticamente:
-- **Push a `main`** → Deploy a ambiente **dev**
-- **Push de tag `v*`** → Deploy a ambiente **prod**
-
-> Requiere configurar el secret `FIREBASE_TOKEN` en el repositorio de GitHub. Genéralo con: `npx firebase login:ci`
-
----
-
-## 🧠 Decisiones Técnicas
-
-### ¿Por qué Vite + Vanilla JS?
-- **Vite** es el bundler más rápido disponible, con HMR instantáneo.
-- **Vanilla JS** demuestra dominio de fundamentos sin esconderse detrás de un framework.
-- Para un proyecto de esta escala, un framework sería over-engineering.
-
-### ¿Por qué módulos + .tfvars en vez de Terraform workspaces?
-- Cada ambiente tiene su propio **state file independiente**, lo cual es más seguro.
-- Se puede versionar cada `.tfvars` por separado.
-- Es más explícito: `terraform apply -var-file=environments/dev.tfvars` deja claro qué se está desplegando.
-- Los workspaces comparten el mismo state y eso puede ser riesgoso en producción.
-
-### ¿Por qué el endpoint SQL de la API del MEF?
-- El endpoint `datastore_search` básico no soporta búsqueda de texto en campos específicos.
-- `datastore_search_sql` permite hacer `LIKE '%texto%'` en múltiples campos simultáneamente.
-- Se usa el endpoint estándar para cargas iniciales y el SQL solo cuando hay búsqueda activa.
-
-### ¿Por qué CSS puro con Custom Properties?
-- Zero dependencias externas para estilos.
-- Design tokens consistentes en toda la app.
-- Dark theme nativo sin librería.
-- Glassmorphism y micro-animaciones con CSS puro.
-
-### Cloud Function proxy + Firestore caché
-- Inicialmente intentamos consumir la API del MEF directamente desde el navegador. Esto generó dos problemas reales: **bloqueo CORS** en ciertos orígenes y **AdBlockers** (como Brave Shield) que bloqueaban las conexiones WebSocket de Firestore en el cliente.
-- **Solución:** Implementamos una Cloud Function (`mefProxy`) que actúa como proxy reverso, eliminando CORS y centralizando la lógica de peticiones.
-- **Firestore como caché backend:** La Cloud Function cachea las respuestas del MEF en Firestore con TTL de 24 horas. La primera consulta tarda ~40s, las siguientes ~50ms.
-- El frontend solo usa `localStorage` como caché rápida de primera línea, sin SDK de Firebase (inmune a AdBlockers).
-- Las decisiones detalladas están documentadas en [`discusion.md`](discusion.md).
-
----
-
-## 🧪 Tests
-
-Los tests unitarios verifican:
-- ✅ `buildApiUrl` construye URLs con todos los parámetros
-- ✅ `buildApiUrl` maneja filtros JSON correctamente
-- ✅ `fetchMefData` maneja errores de red
-- ✅ `fetchMefData` maneja respuestas vacías
-- ✅ `fetchMefData` parsea datos correctamente
-- ✅ `fetchMefData` respeta `limit` y `offset` de paginación
-- ✅ `fetchMefData` lanza error en respuestas HTTP no exitosas
-
-```bash
-npm run test
-```
-
----
-
-## 📐 Diagrama de Arquitectura
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                        USUARIO                               │
-│                     (Navegador Web)                           │
-└──────────────┬──────────────────────────────────────────────┘
-               │  fetch /api/mef/*
-               ▼
-┌──────────────────────┐    ┌──────────────────────────┐
-│   Firebase Hosting   │    │  Cloud Function           │
-│   (dev / prod)       │───▶│  (mefProxy)               │
-│                      │    │                           │
-│  ┌────────────────┐  │    │  ┌─ Firestore Caché ──┐   │
-│  │  Vite Build    │  │    │  │  TTL: 24h          │   │
-│  │  (dist/)       │  │    │  │  SHA-256 keys      │   │
-│  └────────────────┘  │    │  └────────────────────┘   │
-└──────────────────────┘    └───────────┬───────────────┘
-                                        │  proxy request
-                                        ▼
-                            ┌──────────────────────────┐
-                            │  API Datos Abiertos MEF  │
-                            │  (CKAN)                  │
-                            │                          │
-                            │  datastore_search        │
-                            │  datastore_search_sql    │
-                            │                          │
-                            │  2024-Gasto.csv          │
-                            │  11,191,489 registros    │
-                            └──────────────────────────┘
-
-┌──────────────────────┐    ┌──────────────────────────┐
-│   Terraform          │    │   GitHub Actions          │
-│   (google-beta)      │    │   (CI/CD)                 │
-│                      │    │                           │
-│  ├── modules/        │    │  push main → deploy dev   │
-│  └── environments/   │    │  tag v* → deploy prod     │
-│      ├── dev.tfvars  │    │                           │
-│      └── prod.tfvars │    └───────────────────────────┘
-└──────────────────────┘
-```
-
----
-
-## 📝 Qué No Alcancé a Hacer y Cómo lo Resolvería
-
-Con más tiempo, implementaría:
-
-1. **Firestore para favoritos de usuario**: Permitir al usuario guardar registros de interés con autenticación anónima de Firebase. Usaría reglas de seguridad por UID y un componente `FavoritesPanel` con almacenamiento persistente en Firestore.
-
-2. **Gráficas interactivas**: Charts.js o D3.js para visualizar la ejecución presupuestal por sector/departamento con gráficas de barras y donuts.
-
-3. **Export a CSV/Excel**: Botón para descargar los datos filtrados en formato tabular.
-
-4. **PWA + Offline**: Service Worker para funcionar sin conexión con los últimos datos cacheados.
-
-5. **i18n**: Soporte para quechua y aymara además de español.
-
-6. **Tests E2E**: Playwright o Cypress para probar flujos completos de usuario.
-
-7. **Agregaciones de PIA/PIM**: La API del MEF (CKAN) no soporta funciones de agregación SQL (SUM, GROUP BY retornan error 42883). Con más tiempo, implementaría la agregación en la Cloud Function para calcular totales reales de PIA/PIM por Genérica de Gasto.
-
----
-
-## 📄 Licencia
-
-Proyecto desarrollado como reto técnico para ExpedienteCheck. Datos públicos del [Portal de Datos Abiertos del MEF](https://datosabiertos.mef.gob.pe).
+## ⚡ Conclusión del Reto
+Se ha logrado un sistema *End-to-End* funcional. En lugar de un simple listado con filtros, se orquestó un ecosistema productivo real donde la **Infraestructura se declara como código (Terraform)**, los **despliegues son automáticos (GitHub Actions)**, el **frontend es extremadamente ligero (Vanilla+Vite)**, y la intermitencia del servidor gubernamental se soluciona de forma elegante mediante **Proxies y Cachés (Cloud Functions+Firestore)**.

@@ -41,8 +41,8 @@ export const RESOURCE_IDS = {
 /** Resource ID por defecto */
 const DEFAULT_RESOURCE_ID = RESOURCE_IDS.GASTO_2024;
 
-/** Timeout para las peticiones (en ms) - Ajustado a 130s para soportar queries pesadas del MEF */
-const REQUEST_TIMEOUT = 130000;
+/** Timeout para las peticiones (en ms) - Ajustado a 300s (5 min) para soportar caídas del MEF */
+const REQUEST_TIMEOUT = 300000;
 
 /**
  * Construye la URL de la API con los parámetros de consulta
