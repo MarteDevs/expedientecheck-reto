@@ -4,6 +4,7 @@
  */
 
 import { debounce } from '../utils/debounce.js';
+import { showPromptModal } from './PromptModal.js';
 
 /**
  * Renderiza la barra de búsqueda y filtros
@@ -24,6 +25,9 @@ export function renderSearchBar(container, options = {}) {
     onSearch,
     onFilterChange,
     onClearFilters,
+    favorites = [], // Lista de favoritos desde Firestore
+    onSaveFavorite, // Callback para guardar
+    onApplyFavorite, // Callback para aplicar
   } = options;
 
   // Mapa de números de mes a nombres completos
@@ -106,12 +110,20 @@ export function renderSearchBar(container, options = {}) {
         <button id="apply-filters-btn" class="btn btn--primary">Buscar / Aplicar</button>
         ${
           hasActiveFilters
-            ? '<button id="clear-filters-btn" class="btn btn--ghost">✕ Limpiar</button>'
+            ? `<button id="save-favorite-btn" class="btn btn--ghost" style="color: #fbbf24;">★ Guardar</button>
+               <button id="clear-filters-btn" class="btn btn--ghost">✕ Limpiar</button>`
             : ''
         }
       </div>
       <div class="filters-row">
         ${filtersHtml}
+        
+        ${favorites && favorites.length > 0 ? `
+          <select class="favorite-select" id="favorites-select" style="border-color: #fbbf24; background-color: rgba(251, 191, 36, 0.1); padding: 0.5rem; border-radius: 4px; font-weight: bold;">
+            <option value="">★ Mis Favoritos</option>
+            ${favorites.map(f => `<option value="${f.id}">${escapeHtml(f.name)}</option>`).join('')}
+          </select>
+        ` : ''}
       </div>
       ${activeChips ? `<div class="active-filters">${activeChips}</div>` : ''}
     </div>
@@ -175,6 +187,33 @@ export function renderSearchBar(container, options = {}) {
       }
     });
   });
+
+  // Guardar Favorito
+  const saveFavBtn = container.querySelector('#save-favorite-btn');
+  if (saveFavBtn && onSaveFavorite) {
+    saveFavBtn.addEventListener('click', async () => {
+      const name = await showPromptModal({
+        title: 'Guardar Favorito',
+        placeholder: 'Ej. Educación Amazonas',
+        submitText: 'Guardar',
+        cancelText: 'Cancelar'
+      });
+      if (name && name.trim()) {
+        onSaveFavorite(name.trim());
+      }
+    });
+  }
+
+  // Aplicar Favorito desde Select
+  const favSelect = container.querySelector('#favorites-select');
+  if (favSelect && onApplyFavorite) {
+    favSelect.addEventListener('change', (e) => {
+      if (e.target.value) {
+        onApplyFavorite(e.target.value);
+        e.target.value = ''; // Resetear select
+      }
+    });
+  }
 }
 
 /** Mapea nombres de campo a etiquetas legibles */

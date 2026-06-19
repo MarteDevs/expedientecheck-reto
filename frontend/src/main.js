@@ -12,6 +12,8 @@ import { renderSearchBar } from './components/SearchBar.js';
 import { renderDataTable } from './components/DataTable.js';
 import { initModal, openModal } from './components/DetailModal.js';
 import { formatCompactCurrency } from './utils/formatter.js';
+import { saveFavorite, getFavorites } from './api/firebase.js';
+import { showAlertModal } from './components/AlertModal.js';
 
 // Valores de respaldo para los filtros (en caso de que la API del MEF falle o tarde en cargar)
 const FALLBACK_NIVEL_GOBIERNO = [
@@ -102,6 +104,7 @@ const state = {
   },
   loading: true,
   error: null,
+  favorites: [],
   stats: {
     totalPIA: 0,
     totalPIM: 0,
@@ -125,6 +128,10 @@ async function init() {
 
   initModal();
   loadFilterOptions();
+  
+  // Cargar favoritos al inicio
+  state.favorites = await getFavorites();
+  
   await loadData();
 }
 
@@ -255,10 +262,13 @@ function renderSearch() {
     filterOptions: state.filterOptions,
     activeFilters: state.filters,
     searchQuery: state.searchQuery,
+    favorites: state.favorites,
     onSearch: handleSearch,
     onFilterChange: handleFilterChange,
     onClearFilters: handleClearFilters,
     onApply: handleApply,
+    onSaveFavorite: handleSaveFavorite,
+    onApplyFavorite: handleApplyFavorite
   });
 }
 
@@ -313,6 +323,27 @@ function handleClearFilters() {
   state.filters = {};
   state.offset = 0;
   loadData();
+}
+
+async function handleSaveFavorite(name) {
+  const success = await saveFavorite(name, state.filters);
+  if (success) {
+    state.favorites = await getFavorites(); // Recargar favoritos
+    renderSearch();
+    await showAlertModal('¡Favorito guardado en Firestore con éxito!', 'Éxito');
+  } else {
+    await showAlertModal('Hubo un error al guardar el favorito.', 'Error');
+  }
+}
+
+function handleApplyFavorite(favoriteId) {
+  const fav = state.favorites.find(f => f.id === favoriteId);
+  if (fav) {
+    state.filters = { ...fav.filters };
+    state.searchQuery = '';
+    state.offset = 0;
+    loadData();
+  }
 }
 
 function handlePageChange(newOffset) {
