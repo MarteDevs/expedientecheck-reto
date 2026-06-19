@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- SEO -->
+    <title>ExpedienteCheck — Ejecución Presupuestal del MEF</title>
+    <meta
+      name="description"
+      content="Visualiza datos de ejecución presupuestal del Perú en tiempo real. Consulta el presupuesto y gasto del Gobierno Nacional, Regional y Local desde los datos abiertos del MEF."
+    />
+    <meta
+      name="keywords"
+      content="presupuesto, ejecución, MEF, Perú, datos abiertos, gasto público, gobierno"
+    />
+    <meta name="author" content="ExpedienteCheck" />
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="ExpedienteCheck — Ejecución Presupuestal" />
+    <meta
+      property="og:description"
+      content="Datos de ejecución presupuestal del Perú en tiempo real, desde la API abierta del MEF."
+    />
+    <meta property="og:type" content="website" />
+
+    <!-- Favicon (emoji como fallback) -->
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📊</text></svg>"
+    />
+
+    <!-- Preconnect para Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  </head>
+  <body>
+    <div class="app-container" id="app">
+      <!-- Header -->
+      <header class="app-header">
+        <div class="app-header__brand">
+          <div class="app-header__logo">E</div>
+          <div>
+            <h1 class="app-header__title">ExpedienteCheck</h1>
+            <p class="app-header__subtitle">
+              Ejecución Presupuestal — Datos Abiertos del MEF
+            </p>
+          </div>
+        </div>
+        <span class="app-header__badge">🔴 En vivo — API MEF</span>
+      </header>
+
+      <!-- Stats Cards -->
+      <section class="stats-bar" id="stats-container">
+        <!-- Renderizado dinámicamente por main.js -->
+      </section>
+
+      <!-- Search & Filters -->
+      <section id="search-container">
+        <!-- Renderizado dinámicamente por SearchBar.js -->
+      </section>
+
+      <!-- Data Table -->
+      <main id="table-container">
+        <!-- Renderizado dinámicamente por DataTable.js / Loader.js / ErrorState.js -->
+      </main>
+
+      <!-- Footer -->
+      <footer class="app-footer">
+        <p>
+          ExpedienteCheck · Reto Técnico Finalistas ·
+          Datos de
+          <a
+            href="https://datosabiertos.mef.gob.pe"
+            target="_blank"
+            rel="noopener noreferrer"
+            >Datos Abiertos del MEF</a
+          >
+        </p>
+        <p style="margin-top: 0.5rem; font-size: 0.75rem; opacity: 0.6">
+          Los datos se obtienen en tiempo real de la API pública del Ministerio
+          de Economía y Finanzas del Perú
+        </p>
+      </footer>
+    </div>
+
+    <!-- Entry point de la app (Vite inyecta los módulos) -->
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

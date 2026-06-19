@@ -1,0 +1,164 @@
+/**
+ * Componente DetailModal — Modal glassmorphism con detalle de un registro
+ * Se abre al hacer clic en una fila de la tabla
+ */
+
+import { formatCurrency, formatExecution } from '../utils/formatter.js';
+
+/** Referencia para gestionar el estado del modal */
+let isOpen = false;
+
+/**
+ * Inicializa el modal (crea el markup base en el DOM)
+ * Llamar una sola vez al inicio de la app
+ */
+export function initModal() {
+  // Backdrop
+  const backdrop = document.createElement('div');
+  backdrop.className = 'modal-backdrop';
+  backdrop.id = 'modal-backdrop';
+
+  // Modal
+  const modal = document.createElement('div');
+  modal.className = 'modal';
+  modal.id = 'detail-modal';
+  modal.innerHTML = `
+    <div class="modal__header">
+      <h3 class="modal__title" id="modal-title">Detalle</h3>
+      <button class="modal__close" id="modal-close" title="Cerrar (Esc)">✕</button>
+    </div>
+    <div class="modal__body" id="modal-body"></div>
+  `;
+
+  document.body.appendChild(backdrop);
+  document.body.appendChild(modal);
+
+  // ── Event Listeners ──
+
+  // Cerrar con clic en backdrop
+  backdrop.addEventListener('click', closeModal);
+
+  // Cerrar con botón X
+  document.getElementById('modal-close').addEventListener('click', closeModal);
+
+  // Cerrar con Escape
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && isOpen) {
+      closeModal();
+    }
+  });
+}
+
+/**
+ * Abre el modal con los datos de un registro
+ * @param {Object} record - Registro del MEF a mostrar
+ */
+export function openModal(record) {
+  if (!record) return;
+
+  const title = record.PLIEGO_NOMBRE || record.SECTOR_NOMBRE || 'Detalle del registro';
+  const modalTitle = document.getElementById('modal-title');
+  const modalBody = document.getElementById('modal-body');
+  const backdrop = document.getElementById('modal-backdrop');
+  const modal = document.getElementById('detail-modal');
+
+  modalTitle.textContent = title;
+
+  // Construir los campos del detalle
+  const pia = parseFloat(record.MONTO_PIA) || 0;
+  const pim = parseFloat(record.MONTO_PIM) || 0;
+  const certificado = parseFloat(record.MONTO_CERTIFICADO) || 0;
+  const comprometido = parseFloat(record.MONTO_COMPROMETIDO) || 0;
+  const devengado = parseFloat(record.MONTO_DEVENGADO) || 0;
+  const girado = parseFloat(record.MONTO_GIRADO) || 0;
+  const execution = formatExecution(devengado, pim);
+
+  const fields = [
+    { label: 'Año de Ejercicio', value: record.ANO_EJE },
+    { label: 'Nivel de Gobierno', value: record.NIVEL_GOBIERNO_NOMBRE },
+    { label: 'Sector', value: record.SECTOR_NOMBRE },
+    { label: 'Pliego', value: record.PLIEGO_NOMBRE },
+    { label: 'Ejecutora', value: record.EJECUTORA_NOMBRE },
+    { label: 'Departamento', value: record.DEPARTAMENTO_META_NOMBRE },
+    { label: 'Función', value: record.FUNCION_NOMBRE },
+    { label: 'División Funcional', value: record.DIVISION_FUNCIONAL_NOMBRE },
+    { label: 'Grupo Funcional', value: record.GRUPO_FUNCIONAL_NOMBRE },
+    { label: 'Programa Presupuestal', value: record.PROGRAMA_PPTAL_NOMBRE },
+    { label: 'Fuente de Financiamiento', value: record.FUENTE_FINANC_NOMBRE },
+    { label: 'Genérica de Gasto', value: record.GENERICA_NOMBRE },
+  ];
+
+  const moneyFields = [
+    { label: 'PIA (Apertura)', value: pia },
+    { label: 'PIM (Modificado)', value: pim },
+    { label: 'Certificado', value: certificado },
+    { label: 'Comprometido', value: comprometido },
+    { label: 'Devengado', value: devengado },
+    { label: 'Girado', value: girado },
+  ];
+
+  const fieldsHtml = fields
+    .filter((f) => f.value)
+    .map(
+      (f) => `
+      <div class="modal__field">
+        <span class="modal__field-label">${f.label}</span>
+        <span class="modal__field-value">${f.value}</span>
+      </div>
+    `
+    )
+    .join('');
+
+  const moneyHtml = moneyFields
+    .map(
+      (f) => `
+      <div class="modal__field">
+        <span class="modal__field-label">${f.label}</span>
+        <span class="modal__field-value modal__field-value--amount">${formatCurrency(f.value)}</span>
+      </div>
+    `
+    )
+    .join('');
+
+  modalBody.innerHTML = `
+    ${fieldsHtml}
+    <hr style="border:none;border-top:1px solid var(--color-border);margin:var(--space-4) 0">
+    <h4 style="font-size:var(--font-size-sm);color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:var(--space-3)">💰 Montos Presupuestales</h4>
+    ${moneyHtml}
+    <div class="modal__execution-bar">
+      <div class="modal__execution-bar__title">📊 Avance de Ejecución</div>
+      <div class="execution-visual">
+        <div class="execution-visual__fill" style="width:${execution.value}%">
+          ${execution.label}
+        </div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:var(--space-2);font-size:var(--font-size-xs);color:var(--color-text-muted)">
+        <span>PIA: ${formatCurrency(pia)}</span>
+        <span>PIM: ${formatCurrency(pim)}</span>
+      </div>
+    </div>
+  `;
+
+  // Abrir con animación
+  backdrop.classList.add('active');
+  modal.classList.add('active');
+  isOpen = true;
+
+  // Prevenir scroll del body
+  document.body.style.overflow = 'hidden';
+}
+
+/**
+ * Cierra el modal
+ */
+export function closeModal() {
+  const backdrop = document.getElementById('modal-backdrop');
+  const modal = document.getElementById('detail-modal');
+
+  if (backdrop) backdrop.classList.remove('active');
+  if (modal) modal.classList.remove('active');
+  isOpen = false;
+
+  // Restaurar scroll
+  document.body.style.overflow = '';
+}

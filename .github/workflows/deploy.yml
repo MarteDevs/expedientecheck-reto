@@ -1,0 +1,84 @@
+# ============================================================
+# Flujo de trabajo CI/CD para ExpedienteCheck
+# ------------------------------------------------------------
+# Despliega automáticamente a Firebase Hosting:
+#   - Entorno DEV: al hacer push a la rama 'main'
+#   - Entorno PROD: al crear un tag con prefijo 'v' (ej: v1.0.0)
+#
+# Requisitos:
+#   - Configurar el secreto FIREBASE_TOKEN en el repositorio
+#     (generar con: firebase login:ci)
+# ============================================================
+
+name: CI/CD - Despliegue a Firebase
+
+on:
+  # Despliegue a DEV cuando se hace push a main
+  push:
+    branches:
+      - main
+    # Despliegue a PROD cuando se crea un tag de versión
+    tags:
+      - 'v*'
+
+# Permisos mínimos necesarios para el flujo
+permissions:
+  contents: read
+
+jobs:
+  # --------------------------------------------------------
+  # Job: Construir, probar y desplegar la aplicación
+  # --------------------------------------------------------
+  build-and-deploy:
+    name: Construir y Desplegar
+    runs-on: ubuntu-latest
+
+    # Directorio de trabajo predeterminado para todos los comandos
+    defaults:
+      run:
+        working-directory: frontend
+
+    # Variables de entorno compartidas entre los pasos
+    env:
+      FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+
+    steps:
+      # Paso 1: Clonar el repositorio
+      - name: Clonar repositorio
+        uses: actions/checkout@v4
+
+      # Paso 2: Configurar Node.js con caché de dependencias
+      - name: Configurar Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      # Paso 3: Instalar dependencias (instalación limpia)
+      - name: Instalar dependencias
+        run: npm ci
+
+      # Paso 4: Ejecutar pruebas unitarias
+      - name: Ejecutar pruebas
+        run: npm run test
+
+      # Paso 5: Construir la aplicación para producción
+      - name: Construir aplicación
+        run: npm run build
+
+      # Paso 6: Desplegar a Firebase Hosting (entorno DEV)
+      # Solo se ejecuta en push a main (sin tag)
+      - name: Desplegar a Firebase (DEV)
+        if: github.ref == 'refs/heads/main' && !startsWith(github.ref, 'refs/tags/')
+        run: npx firebase-tools deploy --only hosting --project dev
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+
+      # Paso 7: Desplegar a Firebase Hosting (entorno PROD)
+      # Solo se ejecuta cuando se crea un tag de versión
+      - name: Desplegar a Firebase (PROD)
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: npx firebase-tools deploy --only hosting --project prod
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}

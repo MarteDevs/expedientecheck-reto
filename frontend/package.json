@@ -1,0 +1,18 @@
+{
+  "name": "expedientecheck-reto",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Mini-producto que consume la API pública del MEF y muestra datos de ejecución presupuestal",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "vite": "^6.3.5",
+    "vitest": "^3.2.1"
+  }
+}

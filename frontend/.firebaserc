@@ -1,0 +1,6 @@
+{
+  "projects": {
+    "dev": "expedientecheck-dev",
+    "prod": "expedientecheck-prod"
+  }
+}
