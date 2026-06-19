@@ -33,13 +33,14 @@ function getFetchUrl(urlStr) {
  * Estos IDs corresponden a los archivos CSV publicados en el portal
  */
 export const RESOURCE_IDS = {
-  GASTO_2024: 'a50cf1dc-1655-446d-95a3-de6d5351dc8c', // 2024-Gasto.csv (Verificado y Activo)
-  GASTO_2025: '77fc3228-fa6f-4c1f-a0ed-d32520ad11ad', // 2025-Gasto.csv (Verificado y Activo)
-  GASTO_2023: 'c2b1568e-e399-4bab-8e13-86f62fb7f2b8', // ID desactualizado en el portal (42P01)
+  GASTO_2026: 'd45f660d-6d14-438e-9d91-300084c9b85f', // 2026-Gasto-Mensual.csv (Activo)
+  GASTO_2025: '77fc3228-fa6f-4c1f-a0ed-d32520ad11ad', // 2025-Gasto-Mensual.csv
+  GASTO_2024: 'a50cf1dc-1655-446d-95a3-de6d5351dc8c', // 2024-Gasto.csv
+  GASTO_2023: 'c2b1568e-e399-4bab-8e13-86f62fb7f2b8', // 2023-Gasto.csv
 };
 
-/** Resource ID por defecto */
-const DEFAULT_RESOURCE_ID = RESOURCE_IDS.GASTO_2024;
+/** Resource ID por defecto — 2026 datos actuales */
+const DEFAULT_RESOURCE_ID = RESOURCE_IDS.GASTO_2026;
 
 /** Timeout para las peticiones (en ms) - Ajustado a 300s (5 min) para soportar caídas del MEF */
 const REQUEST_TIMEOUT = 300000;
@@ -125,6 +126,7 @@ export function buildSqlUrl(params = {}) {
     '"MONTO_PIA"',
     '"MONTO_PIM"',
     '"MONTO_CERTIFICADO"',
+    '"MONTO_COMPROMETIDO_ANUAL"',
     '"MONTO_COMPROMETIDO"',
     '"MONTO_DEVENGADO"',
     '"MONTO_GIRADO"'
