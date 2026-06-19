@@ -51,7 +51,8 @@ exports.mefProxy = onRequest(
       }
 
       try {
-        const endpoint = req.path.replace(/^\/|\/$/g, "") || "datastore_search";
+        const pathSegments = req.path.split("/").filter(Boolean);
+        const endpoint = pathSegments[pathSegments.length - 1] || "datastore_search";
         const queryParams = req.query;
 
         // Validar endpoints permitidos por seguridad

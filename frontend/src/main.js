@@ -137,7 +137,9 @@ async function loadData() {
   renderLoader(tableContainer);
 
   try {
-    const useSql = Boolean(state.searchQuery) || Object.values(state.filters).some(v => v && v !== '');
+    // Usamos el endpoint normal (datastore_search) que es más estable para filtros múltiples
+    // y maneja la búsqueda de texto completo con el parámetro "q".
+    const useSql = false;
 
     const result = await fetchMefData({
       resourceId: RESOURCE_IDS.GASTO_2024,
@@ -166,33 +168,14 @@ async function loadData() {
  * Carga los valores únicos para los dropdowns de filtros
  */
 async function loadFilterOptions() {
-  // MES_EJE siempre usa valores estáticos (1-12)
-  state.filterOptions.MES_EJE = [
-    '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'
-  ];
+  // Para evitar sobrecargar la API del MEF con consultas SELECT DISTINCT en
+  // tablas de 11 millones de registros, usamos directamente las constantes.
+  state.filterOptions.nivelGobierno = FALLBACK_NIVEL_GOBIERNO;
+  state.filterOptions.sector = FALLBACK_SECTORES;
+  state.filterOptions.departamento = FALLBACK_DEPARTAMENTOS;
+  state.filterOptions.MES_EJE = FALLBACK_MES_EJE;
 
-  try {
-    const [nivelGobierno, sector, departamento] = await Promise.all([
-      fetchDistinctValues('NIVEL_GOBIERNO_NOMBRE', RESOURCE_IDS.GASTO_2024),
-      fetchDistinctValues('SECTOR_NOMBRE', RESOURCE_IDS.GASTO_2024),
-      fetchDistinctValues('DEPARTAMENTO_META_NOMBRE', RESOURCE_IDS.GASTO_2024),
-    ]);
-
-    if (nivelGobierno && nivelGobierno.length > 0) {
-      state.filterOptions.nivelGobierno = nivelGobierno;
-    }
-    if (sector && sector.length > 0) {
-      state.filterOptions.sector = sector;
-    }
-    if (departamento && departamento.length > 0) {
-      state.filterOptions.departamento = departamento;
-    }
-
-    renderSearch();
-  } catch {
-    console.warn('No se pudieron cargar todas las opciones dinámicas de filtros, usando respaldos estáticos.');
-    renderSearch();
-  }
+  renderSearch();
 }
 
 /**

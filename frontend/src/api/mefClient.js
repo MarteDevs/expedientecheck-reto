@@ -15,7 +15,7 @@ import { getCachedQuery, setCachedQuery } from './firebase.js';
  */
 const MEF_API_BASE = import.meta.env.PROD
   ? '/api/mef'
-  : 'http://127.0.0.1:5001/expedientecheck-dev/us-central1/mefProxy';
+  : 'http://127.0.0.1:5001/expedientecheck-dev-123/us-central1/mefProxy';
 
 /** URL base de la API del MEF */
 const API_BASE_URL = `${MEF_API_BASE}/datastore_search`;
@@ -63,7 +63,7 @@ export function buildApiUrl(params = {}) {
     filters = {},
   } = params;
 
-  const url = new URL(API_BASE_URL);
+  const url = new URL(API_BASE_URL, window.location.origin);
   url.searchParams.set('resource_id', resourceId);
   url.searchParams.set('limit', String(limit));
   url.searchParams.set('offset', String(offset));
@@ -165,7 +165,7 @@ export function buildSqlUrl(params = {}) {
 
   sql += ` LIMIT ${limit} OFFSET ${offset}`;
 
-  const url = new URL(API_SQL_URL);
+  const url = new URL(API_SQL_URL, window.location.origin);
   url.searchParams.set('sql', sql);
   return url.toString();
 }
@@ -271,7 +271,7 @@ export async function fetchMefData(options = {}) {
 export async function fetchDistinctValues(fieldName, resourceId = DEFAULT_RESOURCE_ID) {
   const sql = `SELECT DISTINCT "${fieldName}" FROM "${resourceId}" ORDER BY "${fieldName}" LIMIT 100`;
 
-  const url = new URL(API_SQL_URL);
+  const url = new URL(API_SQL_URL, window.location.origin);
   url.searchParams.set('sql', sql);
 
   const controller = new AbortController();
