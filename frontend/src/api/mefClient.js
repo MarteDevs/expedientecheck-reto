@@ -268,7 +268,7 @@ export async function fetchMefData(options = {}) {
 
 /**
  * Obtiene las estadísticas globales (PIA, PIM, DEVENGADO) para los filtros actuales,
- * ignorando la paginación y resolviendo el problema de PIA/PIM en el Mes 0.
+ * usando SQL nativo para no depender de la paginación.
  */
 export async function fetchGlobalStats(params = {}) {
   const {
@@ -318,7 +318,7 @@ export async function fetchGlobalStats(params = {}) {
   const whereAll = conditionsAll.length > 0 ? `WHERE ${conditionsAll.join(' AND ')}` : '';
   const whereNoMonth = conditionsNoMonth.length > 0 ? `WHERE ${conditionsNoMonth.join(' AND ')}` : '';
 
-  const sqlDevengado = `SELECT SUM(CAST("MONTO_DEVENGADO" AS float)) as dev FROM "${resourceId}" ${whereAll}`;
+  const sqlDevengado = `SELECT SUM(CAST("MONTO_DEVENGADO" AS float)) as dev, SUM(CAST("MONTO_CERTIFICADO" AS float)) as cert, SUM(CAST("MONTO_COMPROMETIDO" AS float)) as comp, SUM(CAST("MONTO_GIRADO" AS float)) as gir FROM "${resourceId}" ${whereAll}`;
   const sqlPimPia = `SELECT SUM(CAST("MONTO_PIA" AS float)) as pia, SUM(CAST("MONTO_PIM" AS float)) as pim FROM "${resourceId}" ${whereNoMonth}`;
 
   try {
@@ -328,17 +328,24 @@ export async function fetchGlobalStats(params = {}) {
     ]);
 
     const dev = resDev?.result?.records?.[0]?.dev || resDev?.records?.[0]?.dev || 0;
+    const cert = resDev?.result?.records?.[0]?.cert || resDev?.records?.[0]?.cert || 0;
+    const comp = resDev?.result?.records?.[0]?.comp || resDev?.records?.[0]?.comp || 0;
+    const gir = resDev?.result?.records?.[0]?.gir || resDev?.records?.[0]?.gir || 0;
+    
     const pia = resPimPia?.result?.records?.[0]?.pia || resPimPia?.records?.[0]?.pia || 0;
     const pim = resPimPia?.result?.records?.[0]?.pim || resPimPia?.records?.[0]?.pim || 0;
 
     return {
       totalPIA: pia,
       totalPIM: pim,
-      totalDevengado: dev
+      totalCertificado: cert,
+      totalComprometido: comp,
+      totalDevengado: dev,
+      totalGirado: gir
     };
   } catch (err) {
     console.error('Error fetching global stats:', err);
-    return { totalPIA: 0, totalPIM: 0, totalDevengado: 0 };
+    return { totalPIA: 0, totalPIM: 0, totalCertificado: 0, totalComprometido: 0, totalDevengado: 0, totalGirado: 0 };
   }
 }
 

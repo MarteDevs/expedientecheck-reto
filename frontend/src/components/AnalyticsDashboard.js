@@ -1,6 +1,6 @@
 import Chart from 'chart.js/auto';
 import { formatCurrency, formatCompactCurrency } from '../utils/formatter.js';
-import { fetchMefData, RESOURCE_IDS } from '../api/mefClient.js';
+import { fetchMefData, fetchGlobalStats, RESOURCE_IDS } from '../api/mefClient.js';
 import html2pdf from 'html2pdf.js';
 
 let chartTrend = null;
@@ -52,13 +52,19 @@ export async function renderAnalyticsDashboard(container, options = {}) {
       const hasActiveFilters = Object.values(filters || {}).some(val => val !== '');
       const useSql = !hasQuery && hasActiveFilters;
 
-      const result = await fetchMefData({
-        limit: 1000, // Traer suficientes registros para análisis real
-        offset: 0,
-        query: searchQuery,
-        filters: filters,
-        useSql,
-      });
+      const [result, globalStats] = await Promise.all([
+        fetchMefData({
+          limit: 1000, // Traer suficientes registros para el gráfico
+          offset: 0,
+          query: searchQuery,
+          filters: filters,
+          useSql,
+        }),
+        fetchGlobalStats({
+          query: searchQuery,
+          filters: filters,
+        })
+      ]);
 
       const records = result.records;
       
@@ -77,7 +83,7 @@ export async function renderAnalyticsDashboard(container, options = {}) {
       document.getElementById('btn-export-pdf').style.display = 'flex';
 
       // Procesar datos para KPIs
-      const kpiData = calculateKPIs(records);
+      const kpiData = calculateKPIs(records, globalStats);
       
       // Renderizar la vista
       document.getElementById('analytics-content').innerHTML = `
@@ -132,7 +138,7 @@ export async function renderAnalyticsDashboard(container, options = {}) {
       `;
 
       // Inicializar Gráficos
-      initCharts(records, kpiData.projectPIM);
+      initCharts(records, globalStats);
 
       // Event Listeners para exportar
       document.getElementById('btn-export-pdf').onclick = exportToPDF;
@@ -147,54 +153,29 @@ export async function renderAnalyticsDashboard(container, options = {}) {
     }
 }
 
-function calculateKPIs(records) {
-  // Separar filas de asignación anual de filas de ejecución mensual
-  const annualRecords = records.filter(r => parseInt(r.MES_EJE) === 0);
+function calculateKPIs(records, globalStats) {
+  // Identificar el último mes con gasto para la proyección
   const monthlyRecords = records.filter(r => parseInt(r.MES_EJE) !== 0);
-  
-  // Si no hay mensuales, usamos los anuales (aunque normalmente están en cero)
   const executionRecords = monthlyRecords.length > 0 ? monthlyRecords : records;
 
-  let totalCertificado = 0;
-  let totalComprometido = 0;
-  let totalDevengado = 0;
-  let projectPIM = 0;
-
-  // El PIM total viene de las filas anuales
-  annualRecords.forEach(r => {
-    projectPIM += parseFloat(r.MONTO_PIM) || 0;
-  });
-
-  // Si no hay filas anuales, sumamos de todas por si acaso
-  if (projectPIM === 0) {
-    records.forEach(r => {
-      projectPIM += parseFloat(r.MONTO_PIM) || 0;
-    });
-  }
-
-  executionRecords.forEach(r => {
-    totalCertificado += parseFloat(r.MONTO_CERTIFICADO) || 0;
-    totalComprometido += parseFloat(r.MONTO_COMPROMETIDO) || 0;
-    totalDevengado += parseFloat(r.MONTO_DEVENGADO) || 0;
-  });
-
-  // Identificar el último mes con gasto para la proyección
   let maxMonth = 0;
   executionRecords.forEach(r => {
     const mes = parseInt(r.MES_EJE);
     if (mes > maxMonth) maxMonth = mes;
   });
+
+  const { totalPIM, totalCertificado, totalComprometido, totalDevengado } = globalStats;
   
   // Velocidad de gasto mensual
   const avgMonthlyDevengado = maxMonth > 0 ? (totalDevengado / maxMonth) : 0;
   const projectedEndYear = avgMonthlyDevengado * 12;
-  const projectionPct = projectPIM > 0 ? (projectedEndYear / projectPIM) * 100 : 0;
+  const projectionPct = totalPIM > 0 ? (projectedEndYear / totalPIM) * 100 : 0;
 
   return {
     certificado: totalCertificado,
     comprometido: totalComprometido,
     devengado: totalDevengado,
-    projectPIM,
+    projectPIM: totalPIM,
     projectionPct: Math.min(projectionPct, 100) // Capped a 100%
   };
 }
@@ -243,7 +224,7 @@ function renderKPICards(kpi) {
   `;
 }
 
-function initCharts(records, projectPIM) {
+function initCharts(records, globalStats) {
   // Limpiar gráficos anteriores si existen
   if (chartTrend) chartTrend.destroy();
   if (chartDonut) chartDonut.destroy();
@@ -255,6 +236,7 @@ function initCharts(records, projectPIM) {
 
   // --- Gráfico de Tendencia Mensual ---
   const monthlyRecords = records.filter(r => parseInt(r.MES_EJE) > 0 && parseInt(r.MES_EJE) <= 12);
+  const executionRecords = monthlyRecords.length > 0 ? monthlyRecords : records;
   
   // Agrupar por mes
   const devengadoPorMes = Array(12).fill(0);
@@ -271,6 +253,8 @@ function initCharts(records, projectPIM) {
     acumuladoReal.push(sum);
   }
 
+  const projectPIM = globalStats.totalPIM || 0;
+  
   // Línea ideal (distribución lineal del PIM)
   const acumuladoIdeal = [];
   for (let i = 1; i <= 12; i++) {
@@ -401,20 +385,12 @@ function initCharts(records, projectPIM) {
 
   // --- Gráfico de Embudo (Fases del Gasto) ---
   const ctxFunnel = document.getElementById('chart-funnel');
-  let sumPIM = 0, sumCert = 0, sumComp = 0, sumDev = 0, sumGir = 0;
   
-  // Usar los registros mensuales (executionRecords equivalente) para sumar
-  const executionRecords = monthlyRecords.length > 0 ? monthlyRecords : records;
-  
-  // PIM se saca del totalProjectPIM que ya recibimos por parámetro (projectPIM)
-  sumPIM = projectPIM;
-  
-  executionRecords.forEach(r => {
-    sumCert += parseFloat(r.MONTO_CERTIFICADO) || 0;
-    sumComp += parseFloat(r.MONTO_COMPROMETIDO) || 0;
-    sumDev += parseFloat(r.MONTO_DEVENGADO) || 0;
-    sumGir += parseFloat(r.MONTO_GIRADO) || 0;
-  });
+  const sumPIM = globalStats.totalPIM || 0;
+  const sumCert = globalStats.totalCertificado || 0;
+  const sumComp = globalStats.totalComprometido || 0;
+  const sumDev = globalStats.totalDevengado || 0;
+  const sumGir = globalStats.totalGirado || 0;
 
   chartFunnel = new Chart(ctxFunnel, {
     type: 'bar',

@@ -70,31 +70,6 @@ export function renderDataTable(container, options = {}) {
       const devengado = parseFloat(record.MONTO_DEVENGADO) || 0;
       const mesEje = parseInt(record.MES_EJE) || 0;
 
-      // Avance: % que este gasto mensual representa del PIM total del proyecto
-      let avanceHtml;
-      if (projectPIM > 0 && devengado > 0) {
-        const pct = (devengado / projectPIM) * 100;
-        const execution = formatExecution(devengado, projectPIM);
-
-        avanceHtml = `
-          <div class="progress-cell" title="S/ ${formatCurrency(devengado)} de S/ ${formatCurrency(projectPIM)} del presupuesto del proyecto">
-            <div class="progress-bar">
-              <div class="progress-bar__fill progress-bar__fill--${execution.level}" style="width:${Math.min(pct, 100)}%"></div>
-            </div>
-            <span class="progress-label progress-label--${execution.level}">${pct.toFixed(1)}%</span>
-          </div>
-        `;
-      } else {
-        avanceHtml = `
-          <div class="progress-cell">
-            <div class="progress-bar">
-              <div class="progress-bar__fill progress-bar__fill--low" style="width:0%"></div>
-            </div>
-            <span class="progress-label progress-label--low">0.0%</span>
-          </div>
-        `;
-      }
-
       return `
         <tr data-index="${index}" title="Clic para ver detalle">
           <td>${record.ANO_EJE || '-'}</td>
@@ -103,9 +78,6 @@ export function renderDataTable(container, options = {}) {
           <td class="col-name">${truncateText(record.PLIEGO_NOMBRE, 35)}</td>
           <td>${truncateText(record.FUNCION_NOMBRE, 25)}</td>
           <td class="col-amount">${formatCurrency(devengado)}</td>
-          <td>
-            ${avanceHtml}
-          </td>
         </tr>
       `;
     })
@@ -130,7 +102,6 @@ export function renderDataTable(container, options = {}) {
               <th>Pliego</th>
               <th>Función</th>
               <th>Devengado</th>
-              <th>Avance</th>
             </tr>
           </thead>
           <tbody>

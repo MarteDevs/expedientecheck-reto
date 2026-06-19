@@ -8,7 +8,6 @@ import './styles/index.css';
 import {
   fetchMefData,
   fetchDistinctValues,
-  fetchGlobalStats,
   RESOURCE_IDS,
 } from './api/mefClient.js';
 import { renderLoader } from './components/Loader.js';
@@ -178,25 +177,10 @@ async function loadData() {
       filters: state.filters,
       useSql,
     });
-    
-    const globalStats = await fetchGlobalStats({
-      query: state.searchQuery,
-      filters: state.filters,
-    });
 
     state.records = result.records;
     state.total = result.total;
     state.fields = result.fields;
-    
-    // Asignar los stats globales
-    const avgExecution = globalStats.totalPIM > 0 ? (globalStats.totalDevengado / globalStats.totalPIM) * 100 : 0;
-    state.stats = { 
-      totalPIA: globalStats.totalPIA, 
-      totalPIM: globalStats.totalPIM, 
-      totalDevengado: globalStats.totalDevengado, 
-      avgExecution 
-    };
-    
     state.loading = false;
 
     calculateStats();
@@ -224,11 +208,25 @@ async function loadFilterOptions() {
 
 /**
  * Calcula estadísticas resumidas de los datos actuales
- * (Ya no se usa la data paginada, ahora usamos state.stats global)
  */
 function calculateStats() {
-  // Ahora usamos la data traída por fetchGlobalStats, 
-  // no necesitamos iterar por records locales
+  if (!state.records.length) {
+    state.stats = { totalPIA: 0, totalPIM: 0, totalDevengado: 0, avgExecution: 0 };
+    return;
+  }
+
+  let totalPIA = 0;
+  let totalPIM = 0;
+  let totalDevengado = 0;
+
+  state.records.forEach((r) => {
+    totalPIA += parseFloat(r.MONTO_PIA) || 0;
+    totalPIM += parseFloat(r.MONTO_PIM) || 0;
+    totalDevengado += parseFloat(r.MONTO_DEVENGADO) || 0;
+  });
+
+  const avgExecution = totalPIM > 0 ? (totalDevengado / totalPIM) * 100 : 0;
+  state.stats = { totalPIA, totalPIM, totalDevengado, avgExecution };
 }
 
 /**
@@ -247,27 +245,10 @@ function renderStats() {
   const { totalPIA, totalPIM, totalDevengado, avgExecution } = state.stats;
 
   statsContainer.innerHTML = `
-    <div class="stat-card">
-      <div class="stat-card__label">PIA TOTAL (GLOBAL)</div>
-      <div class="stat-card__value">${formatCompactCurrency(totalPIA)}</div>
-      <div class="stat-card__trend">Presupuesto de Apertura</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-card__label">PIM TOTAL (GLOBAL)</div>
-      <div class="stat-card__value">${formatCompactCurrency(totalPIM)}</div>
-      <div class="stat-card__trend">Presupuesto Modificado</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-card__label">DEVENGADO (GLOBAL)</div>
+    <div class="stat-card" style="grid-column: span 12;">
+      <div class="stat-card__label">Devengado (Página)</div>
       <div class="stat-card__value">${formatCompactCurrency(totalDevengado)}</div>
-      <div class="stat-card__trend">Monto Ejecutado</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-card__label">Avance Promedio</div>
-      <div class="stat-card__value">${avgExecution.toFixed(1)}%</div>
-      <div class="stat-card__trend stat-card__trend--${avgExecution >= 50 ? 'up' : 'down'}">
-        ${avgExecution >= 50 ? '↑' : '↓'} Ejecución presupuestal
-      </div>
+      <div class="stat-card__trend">Suma de la ejecución presupuestal actual</div>
     </div>
   `;
 }
@@ -422,7 +403,7 @@ function switchTab(tab) {
     // Mostrar/ocultar contenedores
     tableContainer.style.display = 'none';
     statsContainer.style.display = 'none';
-    searchContainer.style.display = 'none';
+    searchContainer.style.display = 'block';
     analyticsContainer.style.display = 'block';
     
     // Renderizar dashboard de análisis
