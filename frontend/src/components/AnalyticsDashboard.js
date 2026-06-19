@@ -88,6 +88,28 @@ export async function renderAnalyticsDashboard(container, options = {}) {
       // Renderizar la vista
       document.getElementById('analytics-content').innerHTML = `
         <div class="analytics-dashboard" style="display: contents;">
+          <!-- Resumen Financiero Global -->
+          <div class="analytics-module module-summary" style="grid-column: span 12; background: transparent; border: none; padding: 0; box-shadow: none;">
+            <h3 class="analytics-module__title" style="margin-bottom: var(--space-4);">💰 Resumen Financiero Global</h3>
+            <div class="stats-bar" style="margin-bottom: 0;">
+              <div class="stat-card">
+                <div class="stat-card__label">PIA Total</div>
+                <div class="stat-card__value">${formatCompactCurrency(globalStats.totalPIA || 0)}</div>
+                <div class="stat-card__trend">Presupuesto Institucional de Apertura</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-card__label">PIM Total</div>
+                <div class="stat-card__value">${formatCompactCurrency(globalStats.totalPIM || 0)}</div>
+                <div class="stat-card__trend">Presupuesto Institucional Modificado</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-card__label">Devengado Total</div>
+                <div class="stat-card__value">${formatCompactCurrency(globalStats.totalDevengado || 0)}</div>
+                <div class="stat-card__trend">Ejecución Presupuestal Actual</div>
+              </div>
+            </div>
+          </div>
+
           <!-- Semáforo de KPIs -->
           <div class="analytics-module module-kpis">
             <h3 class="analytics-module__title">🚦 Semáforo Presupuestal</h3>

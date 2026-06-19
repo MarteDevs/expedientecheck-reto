@@ -403,7 +403,7 @@ function switchTab(tab) {
     // Mostrar/ocultar contenedores
     tableContainer.style.display = 'none';
     statsContainer.style.display = 'none';
-    searchContainer.style.display = 'block';
+    searchContainer.style.display = 'none';
     analyticsContainer.style.display = 'block';
     
     // Renderizar dashboard de análisis
