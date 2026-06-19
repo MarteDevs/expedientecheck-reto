@@ -80,20 +80,20 @@ jobs:
           VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
           VITE_FIREBASE_MEASUREMENT_ID: ${{ secrets.VITE_FIREBASE_MEASUREMENT_ID }}
 
-      # Paso 6: Desplegar a Firebase Hosting y Functions (entorno DEV)
+      # Paso 6: Desplegar a Firebase Hosting, Functions y Firestore Rules (entorno DEV)
       # Solo se ejecuta en push a main (sin tag)
       - name: Desplegar a Firebase (DEV)
         if: github.ref == 'refs/heads/main' && !startsWith(github.ref, 'refs/tags/')
-        run: npx firebase-tools deploy --only hosting,functions --project dev --force
+        run: npx firebase-tools deploy --only hosting,functions,firestore:rules --project dev --force
         working-directory: .
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
 
-      # Paso 7: Desplegar a Firebase Hosting y Functions (entorno PROD)
+      # Paso 7: Desplegar a Firebase Hosting, Functions y Firestore Rules (entorno PROD)
       # Solo se ejecuta cuando se crea un tag de versión
       - name: Desplegar a Firebase (PROD)
         if: startsWith(github.ref, 'refs/tags/v')
-        run: npx firebase-tools deploy --only hosting,functions --project prod --force
+        run: npx firebase-tools deploy --only hosting,functions,firestore:rules --project prod --force
         working-directory: .
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
