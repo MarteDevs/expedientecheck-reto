@@ -21,7 +21,7 @@ import { fetchMefData, buildApiUrl, buildSqlUrl } from '../src/api/mefClient.js'
 
 // URL base de la API (ahora proxy local en tests)
 const API_BASE_URL =
-  'http://127.0.0.1:5001/expedientecheck-dev/us-central1/mefProxy/datastore_search';
+  'http://127.0.0.1:5001/expedientecheck-dev-123/us-central1/mefProxy/datastore_search';
 
 describe('mefClient - Cliente de la API del MEF', () => {
   // Configuración: antes de cada prueba, mockear fetch global
@@ -245,7 +245,7 @@ describe('mefClient - Cliente de la API del MEF', () => {
       const url = buildSqlUrl(params);
       const decodedUrl = decodeURIComponent(url).replace(/\+/g, ' ');
 
-      expect(decodedUrl).toContain('SELECT "_id", "ANO_EJE", "NIVEL_GOBIERNO_NOMBRE"');
+      expect(decodedUrl).toContain('SELECT "_id", "ANO_EJE", "MES_EJE", "NIVEL_GOBIERNO_NOMBRE"');
       expect(decodedUrl).toContain('"PROGRAMA_PPTO_NOMBRE" AS "PROGRAMA_PPTAL_NOMBRE"');
       expect(decodedUrl).toContain('"FUENTE_FINANCIAMIENTO_NOMBRE" AS "FUENTE_FINANC_NOMBRE"');
       expect(decodedUrl).toContain('FROM "abc-123"');
@@ -262,7 +262,7 @@ describe('mefClient - Cliente de la API del MEF', () => {
       const url = buildSqlUrl(params);
       const decodedUrl = decodeURIComponent(url).replace(/\+/g, ' ');
 
-      expect(decodedUrl).toContain('WHERE "NIVEL_GOBIERNO_NOMBRE" = \'GOBIERNO NACIONAL\'');
+      expect(decodedUrl).toContain('WHERE "NIVEL_GOBIERNO_NOMBRE" LIKE \'GOBIERNO NACIONAL\'');
       // Debe buscar en PROGRAMA_PPTO_NOMBRE (columna real de base de datos) en lugar del alias
       expect(decodedUrl).toContain('"PROGRAMA_PPTO_NOMBRE" LIKE \'%SALUD%\'');
     });

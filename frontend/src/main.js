@@ -137,9 +137,14 @@ async function loadData() {
   renderLoader(tableContainer);
 
   try {
-    // Usamos el endpoint normal (datastore_search) que es más estable para filtros múltiples
-    // y maneja la búsqueda de texto completo con el parámetro "q".
-    const useSql = false;
+    // Flujos inteligentes:
+    // 1. Búsqueda por texto (query): Usamos datastore_search porque aprovecha el índice _full_text
+    // 2. Filtros específicos: Usamos datastore_search_sql porque permite usar LIKE según la doc del MEF
+    // 3. Sin filtros: Usamos datastore_search por defecto.
+    const hasQuery = Boolean(state.searchQuery && state.searchQuery.trim());
+    const hasActiveFilters = Object.values(state.filters || {}).some(val => val !== '');
+    
+    const useSql = !hasQuery && hasActiveFilters;
 
     const result = await fetchMefData({
       resourceId: RESOURCE_IDS.GASTO_2024,

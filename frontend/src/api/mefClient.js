@@ -63,7 +63,8 @@ export function buildApiUrl(params = {}) {
     filters = {},
   } = params;
 
-  const url = new URL(API_BASE_URL, window.location.origin);
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'http://localhost';
+  const url = new URL(API_BASE_URL, baseUrl);
   url.searchParams.set('resource_id', resourceId);
   url.searchParams.set('limit', String(limit));
   url.searchParams.set('offset', String(offset));
@@ -135,7 +136,7 @@ export function buildSqlUrl(params = {}) {
   // Agregar filtros como condiciones WHERE
   for (const [key, value] of Object.entries(filters)) {
     if (value && value !== '') {
-      conditions.push(`"${key}" = '${value}'`);
+      conditions.push(`"${key}" LIKE '${value}'`);
     }
   }
 
@@ -165,7 +166,8 @@ export function buildSqlUrl(params = {}) {
 
   sql += ` LIMIT ${limit} OFFSET ${offset}`;
 
-  const url = new URL(API_SQL_URL, window.location.origin);
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'http://localhost';
+  const url = new URL(API_SQL_URL, baseUrl);
   url.searchParams.set('sql', sql);
   return url.toString();
 }
