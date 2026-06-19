@@ -10,7 +10,14 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { fetchMefData, buildApiUrl } from '../src/api/mefClient.js';
+
+// Mock de Firebase para evitar dependencias en los tests unitarios
+vi.mock('../src/api/firebase.js', () => ({
+  getCachedQuery: vi.fn().mockResolvedValue(null),
+  setCachedQuery: vi.fn().mockResolvedValue(undefined),
+}));
+
+import { fetchMefData, buildApiUrl, buildSqlUrl } from '../src/api/mefClient.js';
 
 // URL base de la API de Datos Abiertos del MEF
 const API_BASE_URL =
@@ -221,6 +228,43 @@ describe('mefClient - Cliente de la API del MEF', () => {
       await expect(
         fetchMefData({ resourceId: 'abc-123' })
       ).rejects.toThrow('formato esperado');
+    });
+  });
+
+  // ==========================================================
+  // Grupo: buildSqlUrl - Consulta SQL
+  // ==========================================================
+  describe('buildSqlUrl - Consulta SQL', () => {
+    it('debe generar una consulta SQL con columnas seleccionadas explícitamente', () => {
+      const params = {
+        resourceId: 'abc-123',
+        limit: 10,
+        offset: 5,
+      };
+
+      const url = buildSqlUrl(params);
+      const decodedUrl = decodeURIComponent(url).replace(/\+/g, ' ');
+
+      expect(decodedUrl).toContain('SELECT "_id", "ANO_EJE", "NIVEL_GOBIERNO_NOMBRE"');
+      expect(decodedUrl).toContain('"PROGRAMA_PPTO_NOMBRE" AS "PROGRAMA_PPTAL_NOMBRE"');
+      expect(decodedUrl).toContain('"FUENTE_FINANCIAMIENTO_NOMBRE" AS "FUENTE_FINANC_NOMBRE"');
+      expect(decodedUrl).toContain('FROM "abc-123"');
+      expect(decodedUrl).toContain('LIMIT 10 OFFSET 5');
+    });
+
+    it('debe incluir las cláusulas WHERE para filtros activos y búsquedas', () => {
+      const params = {
+        resourceId: 'abc-123',
+        filters: { NIVEL_GOBIERNO_NOMBRE: 'GOBIERNO NACIONAL' },
+        query: 'salud',
+      };
+
+      const url = buildSqlUrl(params);
+      const decodedUrl = decodeURIComponent(url).replace(/\+/g, ' ');
+
+      expect(decodedUrl).toContain('WHERE "NIVEL_GOBIERNO_NOMBRE" = \'GOBIERNO NACIONAL\'');
+      // Debe buscar en PROGRAMA_PPTO_NOMBRE (columna real de base de datos) en lugar del alias
+      expect(decodedUrl).toContain('"PROGRAMA_PPTO_NOMBRE" LIKE \'%SALUD%\'');
     });
   });
 });

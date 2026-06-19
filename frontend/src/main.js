@@ -132,7 +132,7 @@ async function loadData() {
   renderLoader(tableContainer);
 
   try {
-    const useSql = Boolean(state.searchQuery);
+    const useSql = Boolean(state.searchQuery) || Object.values(state.filters).some(v => v && v !== '');
 
     const result = await fetchMefData({
       resourceId: RESOURCE_IDS.GASTO_2024,

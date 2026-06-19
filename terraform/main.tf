@@ -28,6 +28,28 @@ resource "google_project_service" "firebase_api" {
   disable_on_destroy = false
 }
 
+# API de Firestore: necesaria para crear bases de datos Firestore
+resource "google_project_service" "firestore_api" {
+  provider = google-beta
+  project  = var.project_id
+  service  = "firestore.googleapis.com"
+
+  # No desactivar la API al hacer terraform destroy
+  disable_on_destroy = false
+}
+
+# Base de datos Firestore en modo Nativo
+resource "google_firestore_database" "firestore_db" {
+  provider        = google-beta
+  project         = var.project_id
+  name            = "(default)"
+  location_id     = var.region
+  type            = "FIRESTORE_NATIVE"
+  deletion_policy = "DELETE"
+
+  depends_on = [google_project_service.firestore_api]
+}
+
 # API de Firebase Hosting: necesaria para crear sitios y desplegar contenido
 resource "google_project_service" "firebase_hosting_api" {
   provider = google-beta
@@ -60,5 +82,6 @@ module "firebase_hosting" {
   depends_on = [
     google_project_service.firebase_api,
     google_project_service.firebase_hosting_api,
+    google_project_service.firestore_api,
   ]
 }

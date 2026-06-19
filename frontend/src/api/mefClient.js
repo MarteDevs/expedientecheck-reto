@@ -6,6 +6,8 @@
  * Endpoint: https://api.datosabiertos.mef.gob.pe/DatosAbiertos/v1/datastore_search
  */
 
+import { getCachedQuery, setCachedQuery } from './firebase.js';
+
 /** URL base de la API del MEF */
 const API_BASE_URL =
   'https://api.datosabiertos.mef.gob.pe/DatosAbiertos/v1/datastore_search';
@@ -98,7 +100,29 @@ export function buildSqlUrl(params = {}) {
     orderBy = '',
   } = params;
 
-  let sql = `SELECT * FROM "${resourceId}"`;
+  const selectedColumns = [
+    '"_id"',
+    '"ANO_EJE"',
+    '"NIVEL_GOBIERNO_NOMBRE"',
+    '"SECTOR_NOMBRE"',
+    '"PLIEGO_NOMBRE"',
+    '"EJECUTORA_NOMBRE"',
+    '"DEPARTAMENTO_META_NOMBRE"',
+    '"FUNCION_NOMBRE"',
+    '"DIVISION_FUNCIONAL_NOMBRE"',
+    '"GRUPO_FUNCIONAL_NOMBRE"',
+    '"PROGRAMA_PPTO_NOMBRE" AS "PROGRAMA_PPTAL_NOMBRE"',
+    '"FUENTE_FINANCIAMIENTO_NOMBRE" AS "FUENTE_FINANC_NOMBRE"',
+    '"GENERICA_NOMBRE"',
+    '"MONTO_PIA"',
+    '"MONTO_PIM"',
+    '"MONTO_CERTIFICADO"',
+    '"MONTO_COMPROMETIDO"',
+    '"MONTO_DEVENGADO"',
+    '"MONTO_GIRADO"'
+  ].join(', ');
+
+  let sql = `SELECT ${selectedColumns} FROM "${resourceId}"`;
   const conditions = [];
 
   // Agregar filtros como condiciones WHERE
@@ -116,7 +140,7 @@ export function buildSqlUrl(params = {}) {
       'EJECUTORA_NOMBRE',
       'DEPARTAMENTO_META_NOMBRE',
       'FUNCION_NOMBRE',
-      'PROGRAMA_PPTAL_NOMBRE',
+      'PROGRAMA_PPTO_NOMBRE', // Nombre de la columna física en la DB
     ];
     const searchConditions = searchFields
       .map((f) => `"${f}" LIKE '%${query.trim().toUpperCase()}%'`)
@@ -156,6 +180,16 @@ export async function fetchMefData(options = {}) {
 
   const url = useSql ? buildSqlUrl(params) : buildApiUrl(params);
 
+  // Intentar servir desde la caché híbrida
+  try {
+    const cached = await getCachedQuery(url);
+    if (cached) {
+      return cached;
+    }
+  } catch (err) {
+    console.warn('[Caché] Error al leer caché:', err);
+  }
+
   // Crear AbortController para timeout
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
@@ -185,11 +219,25 @@ export async function fetchMefData(options = {}) {
     const total = data.result?.include_total || data.result?.total || records.length;
     const fields = data.fields || data.result?.fields || [];
 
-    return {
+    const parsedResult = {
       records,
       total: typeof total === 'string' ? parseInt(total, 10) : total,
       fields,
     };
+
+    // Guardar en la caché asíncronamente
+    try {
+      const cachePromise = setCachedQuery(url, parsedResult);
+      if (cachePromise && typeof cachePromise.catch === 'function') {
+        cachePromise.catch((err) => {
+          console.warn('[Caché] Error al guardar caché:', err);
+        });
+      }
+    } catch (err) {
+      console.warn('[Caché] Error al iniciar guardado en caché:', err);
+    }
+
+    return parsedResult;
   } catch (error) {
     if (error.name === 'AbortError') {
       throw new Error(
