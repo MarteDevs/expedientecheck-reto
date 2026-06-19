@@ -14,13 +14,27 @@ const API_BASE_URL =
 const API_SQL_URL =
   'https://api.datosabiertos.mef.gob.pe/DatosAbiertos/v1/datastore_search_sql';
 
+/** Helper para convertir a URL relativa en desarrollo (para usar el proxy de Vite y evitar CORS) */
+function getFetchUrl(urlStr) {
+  try {
+    const isDev = import.meta.env?.DEV;
+    if (isDev) {
+      return urlStr.replace('https://api.datosabiertos.mef.gob.pe', '');
+    }
+  } catch {
+    // Si falla (ej. corriendo fuera de Vite/Node), usar la URL absoluta original
+  }
+  return urlStr;
+}
+
 /**
  * Resource IDs conocidos de datasets del MEF
  * Estos IDs corresponden a los archivos CSV publicados en el portal
  */
 export const RESOURCE_IDS = {
-  GASTO_2024: '2f0dc874-6f83-4e21-acf0-cc3cfce3e040',
-  GASTO_2023: 'c2b1568e-e399-4bab-8e13-86f62fb7f2b8',
+  GASTO_2024: 'a50cf1dc-1655-446d-95a3-de6d5351dc8c', // 2024-Gasto.csv (Verificado y Activo)
+  GASTO_2025: '77fc3228-fa6f-4c1f-a0ed-d32520ad11ad', // 2025-Gasto.csv (Verificado y Activo)
+  GASTO_2023: 'c2b1568e-e399-4bab-8e13-86f62fb7f2b8', // ID desactualizado en el portal (42P01)
 };
 
 /** Resource ID por defecto */
@@ -147,7 +161,7 @@ export async function fetchMefData(options = {}) {
   const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
 
   try {
-    const response = await fetch(url, {
+    const response = await fetch(getFetchUrl(url), {
       signal: controller.signal,
       headers: {
         Accept: 'application/json',
@@ -162,15 +176,19 @@ export async function fetchMefData(options = {}) {
 
     const data = await response.json();
 
-    // La API del MEF devuelve la data en result.records
-    if (!data.result) {
+    // La API del MEF puede devolver records en la raíz (formato personalizado MEF) o en result.records (CKAN estándar)
+    if (!data.result && !data.records) {
       throw new Error('La respuesta de la API no tiene el formato esperado');
     }
 
+    const records = data.records || data.result?.records || [];
+    const total = data.result?.include_total || data.result?.total || records.length;
+    const fields = data.fields || data.result?.fields || [];
+
     return {
-      records: data.result.records || [],
-      total: data.result.total || 0,
-      fields: data.result.fields || [],
+      records,
+      total: typeof total === 'string' ? parseInt(total, 10) : total,
+      fields,
     };
   } catch (error) {
     if (error.name === 'AbortError') {
@@ -205,7 +223,7 @@ export async function fetchDistinctValues(fieldName, resourceId = DEFAULT_RESOUR
   const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
 
   try {
-    const response = await fetch(url.toString(), {
+    const response = await fetch(getFetchUrl(url.toString()), {
       signal: controller.signal,
       headers: { Accept: 'application/json' },
     });
@@ -213,9 +231,10 @@ export async function fetchDistinctValues(fieldName, resourceId = DEFAULT_RESOUR
     if (!response.ok) return [];
 
     const data = await response.json();
-    if (!data.result || !data.result.records) return [];
+    const records = data.records || data.result?.records;
+    if (!records) return [];
 
-    return data.result.records
+    return records
       .map((r) => r[fieldName])
       .filter(Boolean)
       .sort();

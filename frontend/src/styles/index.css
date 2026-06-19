@@ -532,8 +532,6 @@ a:hover {
   border-bottom: 1px solid var(--color-border);
   cursor: pointer;
   transition: all var(--transition-fast);
-  animation: fadeInRow var(--transition-slow) ease-out forwards;
-  opacity: 0;
 }
 
 .data-table tbody tr:hover {
@@ -993,27 +991,7 @@ a:hover {
   50% { opacity: 0.5; }
 }
 
-/* Delay para filas de tabla (stagger effect) */
-.data-table tbody tr:nth-child(1) { animation-delay: 0ms; }
-.data-table tbody tr:nth-child(2) { animation-delay: 30ms; }
-.data-table tbody tr:nth-child(3) { animation-delay: 60ms; }
-.data-table tbody tr:nth-child(4) { animation-delay: 90ms; }
-.data-table tbody tr:nth-child(5) { animation-delay: 120ms; }
-.data-table tbody tr:nth-child(6) { animation-delay: 150ms; }
-.data-table tbody tr:nth-child(7) { animation-delay: 180ms; }
-.data-table tbody tr:nth-child(8) { animation-delay: 210ms; }
-.data-table tbody tr:nth-child(9) { animation-delay: 240ms; }
-.data-table tbody tr:nth-child(10) { animation-delay: 270ms; }
-.data-table tbody tr:nth-child(11) { animation-delay: 300ms; }
-.data-table tbody tr:nth-child(12) { animation-delay: 330ms; }
-.data-table tbody tr:nth-child(13) { animation-delay: 360ms; }
-.data-table tbody tr:nth-child(14) { animation-delay: 390ms; }
-.data-table tbody tr:nth-child(15) { animation-delay: 420ms; }
-.data-table tbody tr:nth-child(16) { animation-delay: 450ms; }
-.data-table tbody tr:nth-child(17) { animation-delay: 480ms; }
-.data-table tbody tr:nth-child(18) { animation-delay: 510ms; }
-.data-table tbody tr:nth-child(19) { animation-delay: 540ms; }
-.data-table tbody tr:nth-child(20) { animation-delay: 570ms; }
+
 
 /* ── Responsive ── */
 @media (max-width: 1024px) {

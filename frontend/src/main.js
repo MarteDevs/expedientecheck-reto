@@ -13,6 +13,74 @@ import { renderDataTable } from './components/DataTable.js';
 import { initModal, openModal } from './components/DetailModal.js';
 import { formatCompactCurrency } from './utils/formatter.js';
 
+// Valores de respaldo para los filtros (en caso de que la API del MEF falle o tarde en cargar)
+const FALLBACK_NIVEL_GOBIERNO = [
+  'GOBIERNO NACIONAL',
+  'GOBIERNOS REGIONALES',
+  'GOBIERNOS LOCALES'
+];
+
+const FALLBACK_SECTORES = [
+  'AGRICULTURA',
+  'AMBIENTE',
+  'COMERCIO EXTERIOR Y TURISMO',
+  'CONGRESO DE LA REPUBLICA',
+  'CONTRALORIA GENERAL',
+  'CULTURA',
+  'DEFENSA',
+  'DEFENSORIA DEL PUEBLO',
+  'DESARROLLO E INCLUSION SOCIAL',
+  'ECONOMIA Y FINANZAS',
+  'EDUCACION',
+  'ENERGIA Y MINAS',
+  'GOBIERNOS LOCALES',
+  'GOBIERNOS REGIONALES',
+  'INTERIOR',
+  'JURADO NACIONAL DE ELECCIONES',
+  'JUSTICIA Y DERECHOS HUMANOS',
+  'MINISTERIO PUBLICO',
+  'MUJER Y POBLACIONES VULNERABLES',
+  'OFICINA NACIONAL DE PROCESOS ELECTORALES',
+  'PODER JUDICIAL',
+  'PRESIDENCIA CONSEJO MINISTROS',
+  'PRODUCCION',
+  'REGISTRO NACIONAL DE IDENTIFICACION Y ESTADO CIVIL',
+  'RELACIONES EXTERIORES',
+  'SALUD',
+  'TRABAJO Y PROMOCION DEL EMPLEO',
+  'TRANSPORTES Y COMUNICACIONES',
+  'TRIBUNAL CONSTITUCIONAL',
+  'VIVIENDA, CONSTRUCCION Y SANEAMIENTO'
+];
+
+const FALLBACK_DEPARTAMENTOS = [
+  'AMAZONAS',
+  'ANCASH',
+  'APURIMAC',
+  'AREQUIPA',
+  'AYACUCHO',
+  'CAJAMARCA',
+  'CALLAO',
+  'CUSCO',
+  'HUANCAVELICA',
+  'HUANUCO',
+  'ICA',
+  'JUNIN',
+  'LA LIBERTAD',
+  'LAMBAYEQUE',
+  'LIMA',
+  'LORETO',
+  'MADRE DE DIOS',
+  'MOQUEGUA',
+  'PASCO',
+  'PIURA',
+  'PUNO',
+  'SAN MARTIN',
+  'TACNA',
+  'TUMBES',
+  'UCAYALI'
+];
+
 // ── Estado Global de la Aplicación ──
 const state = {
   records: [],
@@ -23,9 +91,9 @@ const state = {
   searchQuery: '',
   filters: {},
   filterOptions: {
-    nivelGobierno: [],
-    sector: [],
-    departamento: [],
+    nivelGobierno: FALLBACK_NIVEL_GOBIERNO,
+    sector: FALLBACK_SECTORES,
+    departamento: FALLBACK_DEPARTAMENTOS,
   },
   loading: true,
   error: null,
@@ -100,15 +168,20 @@ async function loadFilterOptions() {
       fetchDistinctValues('DEPARTAMENTO_META_NOMBRE', RESOURCE_IDS.GASTO_2024),
     ]);
 
-    state.filterOptions.nivelGobierno = nivelGobierno;
-    state.filterOptions.sector = sector;
-    state.filterOptions.departamento = departamento;
-
-    if (!state.loading) {
-      renderSearch();
+    if (nivelGobierno && nivelGobierno.length > 0) {
+      state.filterOptions.nivelGobierno = nivelGobierno;
     }
+    if (sector && sector.length > 0) {
+      state.filterOptions.sector = sector;
+    }
+    if (departamento && departamento.length > 0) {
+      state.filterOptions.departamento = departamento;
+    }
+
+    renderSearch();
   } catch {
-    console.warn('No se pudieron cargar las opciones de filtros');
+    console.warn('No se pudieron cargar todas las opciones dinámicas de filtros, usando respaldos estáticos.');
+    renderSearch();
   }
 }
 
