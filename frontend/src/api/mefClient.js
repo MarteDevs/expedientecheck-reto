@@ -9,12 +9,12 @@
 import { getCachedQuery, setCachedQuery } from './firebase.js';
 
 /**
- * Base URL del Proxy / Caché que hemos construido.
- * En producción (Firebase Hosting) usa el rewrite local `/api/mef`.
- * En desarrollo (Vite) apunta directamente al emulador local de Cloud Functions.
+ * Base URL para consultas.
+ * En producción consultamos directo al MEF (para evitar el bloqueo WAF a las IPs de Google Cloud).
+ * En desarrollo usamos nuestro emulador local con Caché en Firestore.
  */
 const MEF_API_BASE = import.meta.env.PROD
-  ? '/api/mef'
+  ? 'https://api.datosabiertos.mef.gob.pe/DatosAbiertos/v1'
   : 'http://127.0.0.1:5001/expedientecheck-dev-123/us-central1/mefProxy';
 
 /** URL base de la API del MEF */
