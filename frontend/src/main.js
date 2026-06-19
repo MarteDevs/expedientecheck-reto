@@ -81,6 +81,10 @@ const FALLBACK_DEPARTAMENTOS = [
   'UCAYALI'
 ];
 
+const FALLBACK_MES_EJE = [
+  '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'
+];
+
 // ── Estado Global de la Aplicación ──
 const state = {
   records: [],
@@ -94,6 +98,7 @@ const state = {
     nivelGobierno: FALLBACK_NIVEL_GOBIERNO,
     sector: FALLBACK_SECTORES,
     departamento: FALLBACK_DEPARTAMENTOS,
+    MES_EJE: FALLBACK_MES_EJE,
   },
   loading: true,
   error: null,
@@ -161,6 +166,11 @@ async function loadData() {
  * Carga los valores únicos para los dropdowns de filtros
  */
 async function loadFilterOptions() {
+  // MES_EJE siempre usa valores estáticos (1-12)
+  state.filterOptions.MES_EJE = [
+    '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'
+  ];
+
   try {
     const [nivelGobierno, sector, departamento] = await Promise.all([
       fetchDistinctValues('NIVEL_GOBIERNO_NOMBRE', RESOURCE_IDS.GASTO_2024),

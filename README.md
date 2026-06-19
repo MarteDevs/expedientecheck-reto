@@ -8,7 +8,7 @@
 
 | Ambiente | URL |
 |----------|-----|
-| **Dev** | *(se genera al desplegar — ver sección Deploy)* |
+| **Dev** | https://expedientecheck-dev.web.app |
 | **Prod** | *(se genera al desplegar — ver sección Deploy)* |
 
 ---
@@ -203,10 +203,12 @@ El archivo `.github/workflows/deploy.yml` despliega automáticamente:
 - Dark theme nativo sin librería.
 - Glassmorphism y micro-animaciones con CSS puro.
 
-### ¿Por qué no Firestore/Cloud Functions?
-- El reto los marca como opcionales y la API del MEF ya es gratuita y sin autenticación.
-- Agregar Firestore introduciría complejidad innecesaria para un visor de datos.
-- Priorización: hacer bien lo obligatorio antes de agregar extras.
+### Cloud Function proxy + Firestore caché
+- Inicialmente intentamos consumir la API del MEF directamente desde el navegador. Esto generó dos problemas reales: **bloqueo CORS** en ciertos orígenes y **AdBlockers** (como Brave Shield) que bloqueaban las conexiones WebSocket de Firestore en el cliente.
+- **Solución:** Implementamos una Cloud Function (`mefProxy`) que actúa como proxy reverso, eliminando CORS y centralizando la lógica de peticiones.
+- **Firestore como caché backend:** La Cloud Function cachea las respuestas del MEF en Firestore con TTL de 24 horas. La primera consulta tarda ~40s, las siguientes ~50ms.
+- El frontend solo usa `localStorage` como caché rápida de primera línea, sin SDK de Firebase (inmune a AdBlockers).
+- Las decisiones detalladas están documentadas en [`discusion.md`](discusion.md).
 
 ---
 
@@ -233,21 +235,32 @@ npm run test
 ┌─────────────────────────────────────────────────────────────┐
 │                        USUARIO                               │
 │                     (Navegador Web)                           │
-└──────────────┬───────────────────────────┬──────────────────┘
-               │                           │
-               ▼                           ▼
+└──────────────┬──────────────────────────────────────────────┘
+               │  fetch /api/mef/*
+               ▼
 ┌──────────────────────┐    ┌──────────────────────────┐
-│   Firebase Hosting   │    │    API Datos Abiertos    │
-│   (dev / prod)       │    │    MEF (CKAN)            │
-│                      │    │                          │
-│  ┌────────────────┐  │    │  datastore_search        │
-│  │  Vite Build    │  │───▶│  datastore_search_sql    │
-│  │  (dist/)       │  │    │                          │
-│  └────────────────┘  │    │  Presupuesto y Ejecución │
-└──────────┬───────────┘    │  de Gasto 2024           │
-           │                └──────────────────────────┘
-           │
-┌──────────▼───────────┐    ┌──────────────────────────┐
+│   Firebase Hosting   │    │  Cloud Function           │
+│   (dev / prod)       │───▶│  (mefProxy)               │
+│                      │    │                           │
+│  ┌────────────────┐  │    │  ┌─ Firestore Caché ──┐   │
+│  │  Vite Build    │  │    │  │  TTL: 24h          │   │
+│  │  (dist/)       │  │    │  │  SHA-256 keys      │   │
+│  └────────────────┘  │    │  └────────────────────┘   │
+└──────────────────────┘    └───────────┬───────────────┘
+                                        │  proxy request
+                                        ▼
+                            ┌──────────────────────────┐
+                            │  API Datos Abiertos MEF  │
+                            │  (CKAN)                  │
+                            │                          │
+                            │  datastore_search        │
+                            │  datastore_search_sql    │
+                            │                          │
+                            │  2024-Gasto.csv          │
+                            │  11,191,489 registros    │
+                            └──────────────────────────┘
+
+┌──────────────────────┐    ┌──────────────────────────┐
 │   Terraform          │    │   GitHub Actions          │
 │   (google-beta)      │    │   (CI/CD)                 │
 │                      │    │                           │
@@ -264,19 +277,19 @@ npm run test
 
 Con más tiempo, implementaría:
 
-1. **Firestore para favoritos**: Permitir al usuario guardar registros de interés. Usaría Firestore en modo anónimo con reglas de seguridad básicas y un componente `FavoritesPanel`.
+1. **Firestore para favoritos de usuario**: Permitir al usuario guardar registros de interés con autenticación anónima de Firebase. Usaría reglas de seguridad por UID y un componente `FavoritesPanel` con almacenamiento persistente en Firestore.
 
-2. **Cloud Function como proxy/cache**: Una función HTTP que cachée las respuestas del MEF en Firestore o Memorystore, reduciendo la latencia y protegiendo contra caídas de la API.
+2. **Gráficas interactivas**: Charts.js o D3.js para visualizar la ejecución presupuestal por sector/departamento con gráficas de barras y donuts.
 
-3. **Gráficas interactivas**: Charts.js o D3.js para visualizar la ejecución presupuestal por sector/departamento con gráficas de barras y donuts.
+3. **Export a CSV/Excel**: Botón para descargar los datos filtrados en formato tabular.
 
-4. **Export a CSV/Excel**: Botón para descargar los datos filtrados en formato tabular.
+4. **PWA + Offline**: Service Worker para funcionar sin conexión con los últimos datos cacheados.
 
-5. **PWA + Offline**: Service Worker para funcionar sin conexión con los últimos datos cacheados.
+5. **i18n**: Soporte para quechua y aymara además de español.
 
-6. **i18n**: Soporte para quechua y aymara además de español.
+6. **Tests E2E**: Playwright o Cypress para probar flujos completos de usuario.
 
-7. **Tests E2E**: Playwright o Cypress para probar flujos completos de usuario.
+7. **Agregaciones de PIA/PIM**: La API del MEF (CKAN) no soporta funciones de agregación SQL (SUM, GROUP BY retornan error 42883). Con más tiempo, implementaría la agregación en la Cloud Function para calcular totales reales de PIA/PIM por Genérica de Gasto.
 
 ---
 

@@ -5,6 +5,8 @@
 
 import { formatCurrency, formatExecution, truncateText } from '../utils/formatter.js';
 
+const MONTH_NAMES = ['', 'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+
 /**
  * Renderiza la tabla de datos y la paginación
  * @param {HTMLElement} container - Elemento donde renderizar
@@ -47,6 +49,9 @@ export function renderDataTable(container, options = {}) {
     return;
   }
 
+  // Calcular el total de devengado para la página (usado para "Peso del Gasto")
+  const totalDevengado = records.reduce((sum, r) => sum + (parseFloat(r.MONTO_DEVENGADO) || 0), 0);
+
   // Generar filas de la tabla
   const rowsHtml = records
     .map((record, index) => {
@@ -55,9 +60,31 @@ export function renderDataTable(container, options = {}) {
       const devengado = parseFloat(record.MONTO_DEVENGADO) || 0;
       const execution = formatExecution(devengado, pim);
 
+      // Cuando PIM=0 y hay gasto, mostrar "Peso del Gasto" en vez de avance vacío
+      let avanceHtml;
+      if (pim === 0 && devengado > 0 && totalDevengado > 0) {
+        const peso = ((devengado / totalDevengado) * 100).toFixed(1);
+        avanceHtml = `
+          <div class="progress-cell">
+            <span class="badge badge--warning" title="Este registro no tiene PIM asignado. Se muestra su peso respecto al gasto total de la página.">Sin PIM</span>
+            <span class="progress-label" style="font-size:var(--font-size-xs);color:var(--color-text-muted)">${peso}% del gasto</span>
+          </div>
+        `;
+      } else {
+        avanceHtml = `
+          <div class="progress-cell">
+            <div class="progress-bar">
+              <div class="progress-bar__fill progress-bar__fill--${execution.level}" style="width:${execution.value}%"></div>
+            </div>
+            <span class="progress-label progress-label--${execution.level}">${execution.label}</span>
+          </div>
+        `;
+      }
+
       return `
         <tr data-index="${index}" title="Clic para ver detalle">
           <td>${record.ANO_EJE || '-'}</td>
+          <td>${MONTH_NAMES[parseInt(record.MES_EJE)] || record.MES_EJE || '-'}</td>
           <td class="col-name">${truncateText(record.SECTOR_NOMBRE, 30)}</td>
           <td class="col-name">${truncateText(record.PLIEGO_NOMBRE, 35)}</td>
           <td>${truncateText(record.FUNCION_NOMBRE, 25)}</td>
@@ -65,12 +92,7 @@ export function renderDataTable(container, options = {}) {
           <td class="col-amount">${formatCurrency(pim)}</td>
           <td class="col-amount">${formatCurrency(devengado)}</td>
           <td>
-            <div class="progress-cell">
-              <div class="progress-bar">
-                <div class="progress-bar__fill progress-bar__fill--${execution.level}" style="width:${execution.value}%"></div>
-              </div>
-              <span class="progress-label progress-label--${execution.level}">${execution.label}</span>
-            </div>
+            ${avanceHtml}
           </td>
         </tr>
       `;
@@ -91,6 +113,7 @@ export function renderDataTable(container, options = {}) {
           <thead>
             <tr>
               <th>Año</th>
+              <th>Mes</th>
               <th>Sector</th>
               <th>Pliego</th>
               <th>Función</th>
