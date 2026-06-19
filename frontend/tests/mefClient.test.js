@@ -19,9 +19,9 @@ vi.mock('../src/api/firebase.js', () => ({
 
 import { fetchMefData, buildApiUrl, buildSqlUrl } from '../src/api/mefClient.js';
 
-// URL base de la API de Datos Abiertos del MEF
+// URL base de la API (ahora proxy local en tests)
 const API_BASE_URL =
-  'https://api.datosabiertos.mef.gob.pe/DatosAbiertos/v1/datastore_search';
+  'http://127.0.0.1:5001/expedientecheck-dev/us-central1/mefProxy/datastore_search';
 
 describe('mefClient - Cliente de la API del MEF', () => {
   // Configuración: antes de cada prueba, mockear fetch global

@@ -1,5 +1,6 @@
 {
   "projects": {
+    "default": "expedientecheck-dev",
     "dev": "expedientecheck-dev",
     "prod": "expedientecheck-prod"
   }

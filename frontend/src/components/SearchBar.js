@@ -85,6 +85,7 @@ export function renderSearchBar(container, options = {}) {
             autocomplete="off"
           />
         </div>
+        <button id="apply-filters-btn" class="btn btn--primary">Buscar / Aplicar</button>
         ${
           hasActiveFilters
             ? '<button id="clear-filters-btn" class="btn btn--ghost">✕ Limpiar</button>'
@@ -100,13 +101,25 @@ export function renderSearchBar(container, options = {}) {
 
   // ── Event Listeners ──
 
-  // Búsqueda con debounce
+  // Búsqueda con debounce (solo actualiza el estado interno, no busca todavía)
   const searchInput = container.querySelector('#search-input');
   if (searchInput && onSearch) {
     const debouncedSearch = debounce((value) => onSearch(value), 400);
     searchInput.addEventListener('input', (e) => {
       debouncedSearch(e.target.value);
     });
+    // Si presiona enter en el input, aplicar búsqueda
+    searchInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && options.onApply) {
+        options.onApply();
+      }
+    });
+  }
+
+  // Botón Aplicar / Buscar
+  const applyBtn = container.querySelector('#apply-filters-btn');
+  if (applyBtn && options.onApply) {
+    applyBtn.addEventListener('click', options.onApply);
   }
 
   // Cambio de filtros
@@ -137,6 +150,10 @@ export function renderSearchBar(container, options = {}) {
           field: btn.dataset.removeField,
           value: '',
         });
+        // Si elimina un chip, aplicamos la búsqueda inmediatamente por UX
+        if (options.onApply) {
+          options.onApply();
+        }
       }
     });
   });

@@ -63,6 +63,24 @@ resource "google_project_service" "firebase_hosting_api" {
   depends_on = [google_project_service.firebase_api]
 }
 
+# API de Cloud Functions: necesaria para crear el proxy backend
+resource "google_project_service" "cloudfunctions_api" {
+  provider = google-beta
+  project  = var.project_id
+  service  = "cloudfunctions.googleapis.com"
+
+  disable_on_destroy = false
+}
+
+# API de Cloud Build: requerida internamente por Cloud Functions para compilar el código
+resource "google_project_service" "cloudbuild_api" {
+  provider = google-beta
+  project  = var.project_id
+  service  = "cloudbuild.googleapis.com"
+
+  disable_on_destroy = false
+}
+
 # ----------------------------------------------------------------------------
 # Módulo de Firebase Hosting
 # ----------------------------------------------------------------------------

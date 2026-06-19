@@ -8,24 +8,23 @@
 
 import { getCachedQuery, setCachedQuery } from './firebase.js';
 
+/**
+ * Base URL del Proxy / Caché que hemos construido.
+ * En producción (Firebase Hosting) usa el rewrite local `/api/mef`.
+ * En desarrollo (Vite) apunta directamente al emulador local de Cloud Functions.
+ */
+const MEF_API_BASE = import.meta.env.PROD
+  ? '/api/mef'
+  : 'http://127.0.0.1:5001/expedientecheck-dev/us-central1/mefProxy';
+
 /** URL base de la API del MEF */
-const API_BASE_URL =
-  'https://api.datosabiertos.mef.gob.pe/DatosAbiertos/v1/datastore_search';
+const API_BASE_URL = `${MEF_API_BASE}/datastore_search`;
 
 /** URL para consultas SQL */
-const API_SQL_URL =
-  'https://api.datosabiertos.mef.gob.pe/DatosAbiertos/v1/datastore_search_sql';
+const API_SQL_URL = `${MEF_API_BASE}/datastore_search_sql`;
 
-/** Helper para convertir a URL relativa en desarrollo (para usar el proxy de Vite y evitar CORS) */
+/** Helper para obtener la URL final (ahora usa directamente la construida) */
 function getFetchUrl(urlStr) {
-  try {
-    const isDev = import.meta.env?.DEV;
-    if (isDev) {
-      return urlStr.replace('https://api.datosabiertos.mef.gob.pe', '');
-    }
-  } catch {
-    // Si falla (ej. corriendo fuera de Vite/Node), usar la URL absoluta original
-  }
   return urlStr;
 }
 
@@ -42,8 +41,8 @@ export const RESOURCE_IDS = {
 /** Resource ID por defecto */
 const DEFAULT_RESOURCE_ID = RESOURCE_IDS.GASTO_2024;
 
-/** Timeout para las peticiones (en ms) */
-const REQUEST_TIMEOUT = 15000;
+/** Timeout para las peticiones (en ms) - Ajustado a 130s para soportar queries pesadas del MEF */
+const REQUEST_TIMEOUT = 130000;
 
 /**
  * Construye la URL de la API con los parámetros de consulta

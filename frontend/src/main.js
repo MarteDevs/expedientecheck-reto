@@ -260,6 +260,7 @@ function renderSearch() {
     onSearch: handleSearch,
     onFilterChange: handleFilterChange,
     onClearFilters: handleClearFilters,
+    onApply: handleApply,
   });
 }
 
@@ -289,10 +290,14 @@ function renderError() {
 
 // ── Handlers de Eventos ──
 
+function handleApply() {
+  state.offset = 0;
+  loadData();
+}
+
 function handleSearch(query) {
   state.searchQuery = query;
   state.offset = 0;
-  loadData();
 }
 
 function handleFilterChange({ field, value }) {
@@ -302,7 +307,7 @@ function handleFilterChange({ field, value }) {
     delete state.filters[field];
   }
   state.offset = 0;
-  loadData();
+  renderSearch(); // Solo actualiza la UI (chips)
 }
 
 function handleClearFilters() {
