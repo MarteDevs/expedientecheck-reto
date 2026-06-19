@@ -14,8 +14,8 @@ import { getCachedQuery, setCachedQuery } from './firebase.js';
  * En desarrollo usamos nuestro emulador local con Caché en Firestore.
  */
 const MEF_API_BASE = import.meta.env.PROD
-  ? '/api/mef' // Proxy vía Firebase Hosting rewrite → Cloud Function en Sudamérica (evita CORS y bloqueo de IP)
-  : 'http://127.0.0.1:5001/expedientecheck-dev-123/us-central1/mefProxy';
+  ? '/api/mef' // Prod: Firebase Hosting rewrite → Cloud Function (Sudamérica)
+  : '/api/mef'; // Dev: Vite proxy → MEF API directa (sin CORS, sin emuladores)
 
 /** URL base de la API del MEF */
 const API_BASE_URL = `${MEF_API_BASE}/datastore_search`;

@@ -25,6 +25,7 @@ export function renderDataTable(container, options = {}) {
     total = 0,
     limit = 20,
     offset = 0,
+    pageTotalPIM = 0,
     onPageChange,
     onLimitChange,
     onRowClick,
@@ -49,34 +50,47 @@ export function renderDataTable(container, options = {}) {
     return;
   }
 
-  // Calcular el total de devengado para la página (usado para "Peso del Gasto")
-  const totalDevengado = records.reduce((sum, r) => sum + (parseFloat(r.MONTO_DEVENGADO) || 0), 0);
+  // Calcular el PIM total del proyecto desde las filas de la página
+  // El MEF asigna el PIM en las filas con MES_EJE=0 (asignación anual)
+  // Las filas mensuales (MES_EJE=1-12) tienen PIM=0 porque solo registran gasto
+  const projectPIM = pageTotalPIM > 0 ? pageTotalPIM : 
+    records.reduce((sum, r) => sum + (parseFloat(r.MONTO_PIM) || 0), 0);
+
+  // Separar filas anuales (MES=0, asignación presupuestal) de mensuales (ejecución)
+  // Las filas anuales ya se muestran en las tarjetas de resumen
+  const monthlyRecords = records.filter(r => parseInt(r.MES_EJE) !== 0);
+  const displayRecords = monthlyRecords.length > 0 ? monthlyRecords : records;
+
+  // Calcular el devengado acumulado para avance progresivo
+  const totalDevengado = displayRecords.reduce((sum, r) => sum + (parseFloat(r.MONTO_DEVENGADO) || 0), 0);
 
   // Generar filas de la tabla
-  const rowsHtml = records
+  const rowsHtml = displayRecords
     .map((record, index) => {
-      const pia = parseFloat(record.MONTO_PIA) || 0;
-      const pim = parseFloat(record.MONTO_PIM) || 0;
       const devengado = parseFloat(record.MONTO_DEVENGADO) || 0;
-      const execution = formatExecution(devengado, pim);
+      const mesEje = parseInt(record.MES_EJE) || 0;
 
-      // Cuando PIM=0 y hay gasto, mostrar "Peso del Gasto" en vez de avance vacío
+      // Avance: % que este gasto mensual representa del PIM total del proyecto
       let avanceHtml;
-      if (pim === 0 && devengado > 0 && totalDevengado > 0) {
-        const peso = ((devengado / totalDevengado) * 100).toFixed(1);
+      if (projectPIM > 0 && devengado > 0) {
+        const pct = (devengado / projectPIM) * 100;
+        const execution = formatExecution(devengado, projectPIM);
+
         avanceHtml = `
-          <div class="progress-cell">
-            <span class="badge badge--warning" title="Este registro no tiene PIM asignado. Se muestra su peso respecto al gasto total de la página.">Sin PIM</span>
-            <span class="progress-label" style="font-size:var(--font-size-xs);color:var(--color-text-muted)">${peso}% del gasto</span>
+          <div class="progress-cell" title="S/ ${formatCurrency(devengado)} de S/ ${formatCurrency(projectPIM)} del presupuesto del proyecto">
+            <div class="progress-bar">
+              <div class="progress-bar__fill progress-bar__fill--${execution.level}" style="width:${Math.min(pct, 100)}%"></div>
+            </div>
+            <span class="progress-label progress-label--${execution.level}">${pct.toFixed(1)}%</span>
           </div>
         `;
       } else {
         avanceHtml = `
           <div class="progress-cell">
             <div class="progress-bar">
-              <div class="progress-bar__fill progress-bar__fill--${execution.level}" style="width:${execution.value}%"></div>
+              <div class="progress-bar__fill progress-bar__fill--low" style="width:0%"></div>
             </div>
-            <span class="progress-label progress-label--${execution.level}">${execution.label}</span>
+            <span class="progress-label progress-label--low">0.0%</span>
           </div>
         `;
       }
@@ -84,12 +98,10 @@ export function renderDataTable(container, options = {}) {
       return `
         <tr data-index="${index}" title="Clic para ver detalle">
           <td>${record.ANO_EJE || '-'}</td>
-          <td>${MONTH_NAMES[parseInt(record.MES_EJE)] || record.MES_EJE || '-'}</td>
+          <td>${MONTH_NAMES[mesEje] || record.MES_EJE || '-'}</td>
           <td class="col-name">${truncateText(record.SECTOR_NOMBRE, 30)}</td>
           <td class="col-name">${truncateText(record.PLIEGO_NOMBRE, 35)}</td>
           <td>${truncateText(record.FUNCION_NOMBRE, 25)}</td>
-          <td class="col-amount">${formatCurrency(pia)}</td>
-          <td class="col-amount">${formatCurrency(pim)}</td>
           <td class="col-amount">${formatCurrency(devengado)}</td>
           <td>
             ${avanceHtml}
@@ -117,8 +129,6 @@ export function renderDataTable(container, options = {}) {
               <th>Sector</th>
               <th>Pliego</th>
               <th>Función</th>
-              <th>PIA</th>
-              <th>PIM</th>
               <th>Devengado</th>
               <th>Avance</th>
             </tr>

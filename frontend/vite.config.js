@@ -9,10 +9,12 @@ export default defineConfig({
     port: 3000,
     open: true,
     proxy: {
-      '/DatosAbiertos': {
+      // Proxy local: /api/mef/datastore_search → https://api.datosabiertos.mef.gob.pe/DatosAbiertos/v1/datastore_search
+      '/api/mef': {
         target: 'https://api.datosabiertos.mef.gob.pe',
         changeOrigin: true,
         secure: false,
+        rewrite: (path) => path.replace(/^\/api\/mef/, '/DatosAbiertos/v1'),
       },
     },
   },

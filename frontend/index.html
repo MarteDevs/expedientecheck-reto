@@ -50,19 +50,34 @@
         <span class="app-header__badge">🔴 En vivo — API MEF</span>
       </header>
 
-      <!-- Stats Cards -->
+      <!-- Navigation Tabs -->
+      <nav class="app-tabs">
+        <button class="app-tab active" id="tab-data" title="Ver tabla de datos">
+          📋 Datos
+        </button>
+        <button class="app-tab" id="tab-analytics" title="Ver análisis y KPIs">
+          📊 Análisis BI
+        </button>
+      </nav>
+
+      <!-- Stats Cards (Data View) -->
       <section class="stats-bar" id="stats-container">
         <!-- Renderizado dinámicamente por main.js -->
       </section>
 
-      <!-- Search & Filters -->
+      <!-- Search & Filters (Shared) -->
       <section id="search-container">
         <!-- Renderizado dinámicamente por SearchBar.js -->
       </section>
 
-      <!-- Data Table -->
-      <main id="table-container">
+      <!-- Data Table View -->
+      <main id="table-container" class="view-container active">
         <!-- Renderizado dinámicamente por DataTable.js / Loader.js / ErrorState.js -->
+      </main>
+
+      <!-- Analytics View -->
+      <main id="analytics-container" class="view-container" style="display: none;">
+        <!-- Renderizado dinámicamente por AnalyticsDashboard.js -->
       </main>
 
       <!-- Footer -->

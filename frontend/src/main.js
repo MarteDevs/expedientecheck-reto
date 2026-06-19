@@ -14,6 +14,7 @@ import { initModal, openModal } from './components/DetailModal.js';
 import { formatCompactCurrency } from './utils/formatter.js';
 import { saveFavorite, getFavorites } from './api/firebase.js';
 import { showAlertModal } from './components/AlertModal.js';
+import { renderAnalyticsDashboard } from './components/AnalyticsDashboard.js';
 
 // Valores de respaldo para los filtros (en caso de que la API del MEF falle o tarde en cargar)
 const FALLBACK_NIVEL_GOBIERNO = [
@@ -111,12 +112,16 @@ const state = {
     totalDevengado: 0,
     avgExecution: 0,
   },
+  currentTab: 'data', // 'data' o 'analytics'
 };
 
 // ── Elementos del DOM ──
 let searchContainer;
 let tableContainer;
 let statsContainer;
+let analyticsContainer;
+let tabData;
+let tabAnalytics;
 
 /**
  * Inicializa la aplicación
@@ -125,9 +130,16 @@ async function init() {
   searchContainer = document.getElementById('search-container');
   tableContainer = document.getElementById('table-container');
   statsContainer = document.getElementById('stats-container');
+  analyticsContainer = document.getElementById('analytics-container');
+  tabData = document.getElementById('tab-data');
+  tabAnalytics = document.getElementById('tab-analytics');
 
   initModal();
   loadFilterOptions();
+
+  // Tab Listeners
+  tabData.addEventListener('click', () => switchTab('data'));
+  tabAnalytics.addEventListener('click', () => switchTab('analytics'));
   
   // Cargar favoritos al inicio
   state.favorites = await getFavorites();
@@ -154,7 +166,7 @@ async function loadData() {
     const useSql = !hasQuery && hasActiveFilters;
 
     const result = await fetchMefData({
-      resourceId: RESOURCE_IDS.GASTO_2024,
+      // resourceId se omite para usar el DEFAULT_RESOURCE_ID (2026) de mefClient.js
       limit: state.limit,
       offset: state.offset,
       query: state.searchQuery,
@@ -281,6 +293,7 @@ function renderTable() {
     total: state.total,
     limit: state.limit,
     offset: state.offset,
+    pageTotalPIM: state.stats.totalPIM,
     onPageChange: handlePageChange,
     onLimitChange: handleLimitChange,
     onRowClick: handleRowClick,
@@ -376,7 +389,42 @@ function handleLimitChange(newLimit) {
 }
 
 function handleRowClick(record) {
-  openModal(record);
+  openModal(record, state.stats.totalPIM);
+}
+
+/**
+ * Cambia entre la vista de Datos y la vista de Análisis
+ */
+function switchTab(tab) {
+  if (state.currentTab === tab) return;
+  state.currentTab = tab;
+
+  // Actualizar UI de los tabs
+  if (tab === 'data') {
+    tabData.classList.add('active');
+    tabAnalytics.classList.remove('active');
+    
+    // Mostrar/ocultar contenedores
+    tableContainer.style.display = 'block';
+    statsContainer.style.display = 'grid';
+    analyticsContainer.style.display = 'none';
+  } else {
+    tabAnalytics.classList.add('active');
+    tabData.classList.remove('active');
+    
+    // Mostrar/ocultar contenedores
+    tableContainer.style.display = 'none';
+    statsContainer.style.display = 'none';
+    analyticsContainer.style.display = 'block';
+    
+    // Renderizar dashboard de análisis
+    renderAnalyticsDashboard(analyticsContainer, {
+      filters: state.filters,
+      searchQuery: state.searchQuery,
+      projectPIM: state.stats.totalPIM,
+      projectPIA: state.stats.totalPIA
+    });
+  }
 }
 
 // ── Arranque ──

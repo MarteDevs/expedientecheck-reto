@@ -52,8 +52,9 @@ export function initModal() {
 /**
  * Abre el modal con los datos de un registro
  * @param {Object} record - Registro del MEF a mostrar
+ * @param {number} projectPIM - PIM total del proyecto (de las stat cards)
  */
-export function openModal(record) {
+export function openModal(record, projectPIM = 0) {
   if (!record) return;
 
   const title = record.PLIEGO_NOMBRE || record.SECTOR_NOMBRE || 'Detalle del registro';
@@ -71,7 +72,12 @@ export function openModal(record) {
   const comprometido = parseFloat(record.MONTO_COMPROMETIDO) || 0;
   const devengado = parseFloat(record.MONTO_DEVENGADO) || 0;
   const girado = parseFloat(record.MONTO_GIRADO) || 0;
-  const execution = formatExecution(devengado, pim);
+  const mesEje = parseInt(record.MES_EJE) || 0;
+
+  // Usar el PIM del proyecto cuando la fila es mensual (PIM=0)
+  const effectivePIM = pim > 0 ? pim : projectPIM;
+  const execution = formatExecution(devengado, effectivePIM);
+  const isMensual = mesEje > 0 && pim === 0;
 
   const sections = [
     {
@@ -162,15 +168,15 @@ export function openModal(record) {
         ${moneyHtml}
       </div>
       <div class="modal__execution-bar">
-        <div class="modal__execution-bar__title">📊 Avance de Ejecución (respecto al PIM)</div>
+        <div class="modal__execution-bar__title">📊 Avance de Ejecución ${isMensual ? '(contribución al PIM del proyecto)' : '(respecto al PIM)'}</div>
         <div class="execution-visual">
           <div class="execution-visual__fill" style="width:${execution.value}%">
             ${execution.label}
           </div>
         </div>
         <div style="display:flex;justify-content:space-between;margin-top:var(--space-2);font-size:var(--font-size-xs);color:var(--color-text-muted)">
-          <span>PIA: ${formatCurrency(pia)}</span>
-          <span>PIM: ${formatCurrency(pim)}</span>
+          <span>Devengado: ${formatCurrency(devengado)}</span>
+          <span>PIM ${isMensual ? '(Proyecto)' : ''}: ${formatCurrency(effectivePIM)}</span>
         </div>
       </div>
     </div>
