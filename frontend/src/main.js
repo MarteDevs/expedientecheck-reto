@@ -110,6 +110,7 @@ const state = {
   loading: true,
   error: null,
   favorites: [],
+  analyticsDirty: true,
   stats: {
     totalPIA: 0,
     totalPIM: 0,
@@ -290,6 +291,7 @@ function renderError() {
 
 function handleApply() {
   state.offset = 0;
+  state.analyticsDirty = true;
   loadData();
 }
 
@@ -312,6 +314,7 @@ function handleClearFilters() {
   state.searchQuery = '';
   state.filters = {};
   state.offset = 0;
+  state.analyticsDirty = true;
   loadData();
 }
 
@@ -338,12 +341,13 @@ function handleApplyFavorite(favoriteId) {
     state.filters = { ...fav.filters };
     state.searchQuery = '';
     state.offset = 0;
-
-    // Si el favorito tiene resultados guardados, mostrarlos al instante
-    if (fav.records && fav.records.length > 0) {
-      state.records = fav.records;
-      state.total = fav.total || fav.records.length;
-      state.fields = fav.fields || state.fields;
+    state.analyticsDirty = true;
+    
+    // Si el favorito trajo los resultados en la misma carga, usarlos
+    if (fav.resultData && fav.resultData.records && fav.resultData.records.length > 0) {
+      state.records = fav.resultData.records;
+      state.total = fav.resultData.total || fav.resultData.records.length;
+      state.fields = fav.resultData.fields || state.fields;
       renderSearch();
       renderTable();
     } else {
@@ -394,13 +398,16 @@ function switchTab(tab) {
     searchContainer.style.display = 'none';
     analyticsContainer.style.display = 'block';
     
-    // Renderizar dashboard de análisis
-    renderAnalyticsDashboard(analyticsContainer, {
-      filters: state.filters,
-      searchQuery: state.searchQuery,
-      projectPIM: state.stats.totalPIM,
-      projectPIA: state.stats.totalPIA
-    });
+    // Renderizar dashboard de análisis solo si los filtros cambiaron
+    if (state.analyticsDirty) {
+      renderAnalyticsDashboard(analyticsContainer, {
+        filters: state.filters,
+        searchQuery: state.searchQuery,
+        projectPIM: state.stats.totalPIM,
+        projectPIA: state.stats.totalPIA
+      });
+      state.analyticsDirty = false;
+    }
   }
 }
 
