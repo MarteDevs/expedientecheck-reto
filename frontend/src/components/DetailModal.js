@@ -164,11 +164,12 @@ export function openModal(record, projectPIM = 0) {
     ${sectionsHtml}
     <div style="background-color:var(--color-surface);padding:var(--space-4);border-radius:var(--radius-lg);margin-top:var(--space-4);border:1px solid var(--color-border)">
       <h4 style="font-size:var(--font-size-sm);color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:var(--space-3)">💰 Montos Presupuestales</h4>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(150px, 1fr));gap:var(--space-3);margin-bottom:var(--space-4)">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(150px, 1fr));gap:var(--space-3);${effectivePIM > 0 ? 'margin-bottom:var(--space-4)' : ''}">
         ${moneyHtml}
       </div>
+      ${effectivePIM > 0 ? `
       <div class="modal__execution-bar">
-        <div class="modal__execution-bar__title">📊 Avance de Ejecución ${isMensual ? '(contribución al PIM del proyecto)' : '(respecto al PIM)'}</div>
+        <div class="modal__execution-bar__title">📊 Avance de Ejecución ${isMensual ? '(contribución al PIM global actual)' : '(respecto al PIM)'}</div>
         <div class="execution-visual">
           <div class="execution-visual__fill" style="width:${execution.value}%">
             ${execution.label}
@@ -176,9 +177,10 @@ export function openModal(record, projectPIM = 0) {
         </div>
         <div style="display:flex;justify-content:space-between;margin-top:var(--space-2);font-size:var(--font-size-xs);color:var(--color-text-muted)">
           <span>Devengado: ${formatCurrency(devengado)}</span>
-          <span>PIM ${isMensual ? '(Proyecto)' : ''}: ${formatCurrency(effectivePIM)}</span>
+          <span>PIM ${isMensual ? '(Global Actual)' : ''}: ${formatCurrency(effectivePIM)}</span>
         </div>
       </div>
+      ` : ''}
     </div>
   `;
 

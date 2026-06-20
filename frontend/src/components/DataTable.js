@@ -73,7 +73,6 @@ export function renderDataTable(container, options = {}) {
       return `
         <tr data-index="${index}" title="Clic para ver detalle">
           <td>${record.ANO_EJE || '-'}</td>
-          <td>${MONTH_NAMES[mesEje] || record.MES_EJE || '-'}</td>
           <td class="col-name">${truncateText(record.SECTOR_NOMBRE, 30)}</td>
           <td class="col-name">${truncateText(record.PLIEGO_NOMBRE, 35)}</td>
           <td>${truncateText(record.FUNCION_NOMBRE, 25)}</td>
@@ -97,11 +96,10 @@ export function renderDataTable(container, options = {}) {
           <thead>
             <tr>
               <th>Año</th>
-              <th>Mes</th>
               <th>Sector</th>
               <th>Pliego</th>
               <th>Función</th>
-              <th>Devengado</th>
+              <th class="col-amount">Devengado</th>
             </tr>
           </thead>
           <tbody>

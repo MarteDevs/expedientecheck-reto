@@ -88,8 +88,8 @@ const FALLBACK_DEPARTAMENTOS = [
   'UCAYALI'
 ];
 
-const FALLBACK_MES_EJE = [
-  '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'
+const FALLBACK_ANO_EJE = [
+  '2026', '2025', '2024', '2023'
 ];
 
 // ── Estado Global de la Aplicación ──
@@ -105,7 +105,7 @@ const state = {
     nivelGobierno: FALLBACK_NIVEL_GOBIERNO,
     sector: FALLBACK_SECTORES,
     departamento: FALLBACK_DEPARTAMENTOS,
-    MES_EJE: FALLBACK_MES_EJE,
+    ANO_EJE: FALLBACK_ANO_EJE,
   },
   loading: true,
   error: null,
@@ -122,7 +122,6 @@ const state = {
 // ── Elementos del DOM ──
 let searchContainer;
 let tableContainer;
-let statsContainer;
 let analyticsContainer;
 let tabData;
 let tabAnalytics;
@@ -133,7 +132,6 @@ let tabAnalytics;
 async function init() {
   searchContainer = document.getElementById('search-container');
   tableContainer = document.getElementById('table-container');
-  statsContainer = document.getElementById('stats-container');
   analyticsContainer = document.getElementById('analytics-container');
   tabData = document.getElementById('tab-data');
   tabAnalytics = document.getElementById('tab-analytics');
@@ -169,8 +167,14 @@ async function loadData() {
     
     const useSql = !hasQuery && hasActiveFilters;
 
+    // Determinar el resourceId en base al año seleccionado
+    let resourceId = RESOURCE_IDS.GASTO_2026;
+    if (state.filters.ANO_EJE && RESOURCE_IDS[`GASTO_${state.filters.ANO_EJE}`]) {
+      resourceId = RESOURCE_IDS[`GASTO_${state.filters.ANO_EJE}`];
+    }
+
     const result = await fetchMefData({
-      // resourceId se omite para usar el DEFAULT_RESOURCE_ID (2026) de mefClient.js
+      resourceId,
       limit: state.limit,
       offset: state.offset,
       query: state.searchQuery,
@@ -201,7 +205,7 @@ async function loadFilterOptions() {
   state.filterOptions.nivelGobierno = FALLBACK_NIVEL_GOBIERNO;
   state.filterOptions.sector = FALLBACK_SECTORES;
   state.filterOptions.departamento = FALLBACK_DEPARTAMENTOS;
-  state.filterOptions.MES_EJE = FALLBACK_MES_EJE;
+  state.filterOptions.ANO_EJE = FALLBACK_ANO_EJE;
 
   renderSearch();
 }
@@ -233,25 +237,11 @@ function calculateStats() {
  * Renderiza todos los componentes
  */
 function render() {
-  renderStats();
   renderSearch();
   renderTable();
 }
 
-/**
- * Renderiza las tarjetas de estadísticas
- */
-function renderStats() {
-  const { totalPIA, totalPIM, totalDevengado, avgExecution } = state.stats;
 
-  statsContainer.innerHTML = `
-    <div class="stat-card" style="grid-column: span 12;">
-      <div class="stat-card__label">Devengado (Página)</div>
-      <div class="stat-card__value">${formatCompactCurrency(totalDevengado)}</div>
-      <div class="stat-card__trend">Suma de la ejecución presupuestal actual</div>
-    </div>
-  `;
-}
 
 /**
  * Renderiza la barra de búsqueda
@@ -393,7 +383,6 @@ function switchTab(tab) {
     
     // Mostrar/ocultar contenedores
     tableContainer.style.display = 'block';
-    statsContainer.style.display = 'grid';
     searchContainer.style.display = 'block';
     analyticsContainer.style.display = 'none';
   } else {
@@ -402,7 +391,6 @@ function switchTab(tab) {
     
     // Mostrar/ocultar contenedores
     tableContainer.style.display = 'none';
-    statsContainer.style.display = 'none';
     searchContainer.style.display = 'none';
     analyticsContainer.style.display = 'block';
     
