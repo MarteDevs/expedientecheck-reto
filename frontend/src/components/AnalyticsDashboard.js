@@ -52,8 +52,15 @@ export async function renderAnalyticsDashboard(container, options = {}) {
       const hasActiveFilters = Object.values(filters || {}).some(val => val !== '');
       const useSql = !hasQuery && hasActiveFilters;
 
+      // Determinar el resourceId en base al año seleccionado
+      let resourceId = RESOURCE_IDS.GASTO_2026;
+      if (filters && filters.ANO_EJE && RESOURCE_IDS[`GASTO_${filters.ANO_EJE}`]) {
+        resourceId = RESOURCE_IDS[`GASTO_${filters.ANO_EJE}`];
+      }
+
       const [result, globalStats] = await Promise.all([
         fetchMefData({
+          resourceId,
           limit: 1000, // Traer suficientes registros para el gráfico
           offset: 0,
           query: searchQuery,
@@ -61,6 +68,7 @@ export async function renderAnalyticsDashboard(container, options = {}) {
           useSql,
         }),
         fetchGlobalStats({
+          resourceId,
           query: searchQuery,
           filters: filters,
         })

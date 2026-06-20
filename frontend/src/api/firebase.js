@@ -44,8 +44,11 @@ async function hashKey(str) {
   }
 }
 
+/** Cache en memoria para evitar el límite de 5MB de localStorage */
+const memoryCache = new Map();
+
 /**
- * Intenta recuperar una consulta de la caché (LocalStorage)
+ * Intenta recuperar una consulta de la caché en memoria
  * @param {string} rawKey - Clave sin hashear
  * @returns {Promise<Object|null>} Datos de la caché o null
  */
@@ -54,31 +57,26 @@ export async function getCachedQuery(rawKey) {
   const twelveHours = 12 * 60 * 60 * 1000;
 
   try {
-    const localData = localStorage.getItem(`mef_cache_${key}`);
-    if (localData) {
-      const cached = JSON.parse(localData);
+    const cached = memoryCache.get(key);
+    if (cached) {
       const ageMs = Date.now() - cached.timestamp;
       
       if (ageMs < twelveHours) {
-        console.log(`[Caché Local] Hit para: ${rawKey.substring(0, 80)}...`);
-        return {
-          records: cached.records,
-          total: cached.total,
-          fields: cached.fields,
-        };
+        console.log(`[Caché en Memoria] Hit para: ${rawKey.substring(0, 60)}...`);
+        return cached;
       } else {
-        localStorage.removeItem(`mef_cache_${key}`);
+        memoryCache.delete(key);
       }
     }
   } catch (err) {
-    console.warn('[Caché Local] Error al consultar:', err);
+    console.warn('[Caché en Memoria] Fallo de lectura:', err);
   }
 
   return null;
 }
 
 /**
- * Guarda los resultados de una consulta en la caché (LocalStorage)
+ * Guarda los resultados de una consulta en la caché en memoria
  * @param {string} rawKey - Clave sin hashear
  * @param {Object} data - Datos a guardar { records, total, fields }
  */
@@ -94,10 +92,15 @@ export async function setCachedQuery(rawKey, data) {
   };
 
   try {
-    localStorage.setItem(`mef_cache_${key}`, JSON.stringify(cacheObj));
-    console.log(`[Caché Local] Guardada exitosamente.`);
+    memoryCache.set(key, cacheObj);
+    
+    // Opcional: Limpiar caché si crece demasiado (ej. > 50 peticiones en memoria)
+    if (memoryCache.size > 50) {
+      const firstKey = memoryCache.keys().next().value;
+      memoryCache.delete(firstKey);
+    }
   } catch (err) {
-    console.warn('[Caché Local] Error al guardar (puede que la cuota esté llena):', err);
+    console.warn('[Caché en Memoria] Error al guardar:', err);
   }
 }
 
