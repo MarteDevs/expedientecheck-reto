@@ -1,8 +1,14 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Reglas para favoritos de los usuarios (acceso público para el reto)
     match /favorites/{favoriteId} {
       allow read, write: if true;
     }
+    
+    // Nota: La colección 'mef_cache' NO requiere reglas en este archivo.
+    // La caché es gestionada exclusivamente por la Cloud Function 'mefProxy'
+    // usando Firebase Admin SDK, el cual tiene privilegios administrativos 
+    // y bypassa (ignora) estas reglas de seguridad.
   }
 }

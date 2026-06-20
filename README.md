@@ -27,7 +27,9 @@ Ante la inestabilidad de la API gubernamental del MEF (CKAN) que maneja más de 
 3. **Valores Estáticos de Arranque (Fallbacks):**
    Para evitar saturar la base de datos con peticiones `SELECT DISTINCT` gigantescas que bloquean la renderización inicial, los dropdowns se nutren de listas estáticas previamente mapeadas en el código.
 
-*(Para más detalle gráfico, revisa el diagrama en [docs/arquitectura.md](docs/arquitectura.md))*
+**Nota sobre los entornos (Proxy vs Rewrite):** En el entorno local (desarrollo), `Vite` hace de proxy para la ruta `/api/mef` apuntando directo al Emulador o API externa. En Producción, `firebase.json` tiene una regla de `rewrite` para que cualquier solicitud a `/api/mef/**` sea redirigida internamente a la Cloud Function `mefProxy`.
+
+*(Para más detalle sobre las decisiones técnicas, consulta el archivo [DECISIONS.md](DECISIONS.md) y el diagrama en [docs/arquitectura.md](docs/arquitectura.md))*
 
 ---
 
@@ -85,6 +87,28 @@ expedientecheck-reto/
 - **Node.js** >= 18
 - **npm** >= 9
 - **Firebase CLI** (`npm install -g firebase-tools`)
+- **Terraform** >= 1.7
+- **Google Cloud SDK (gcloud CLI)**
+
+### 1. Configuración de GCP y Terraform
+Para que Terraform pueda aprovisionar los recursos, debes configurar tus credenciales de Google Cloud:
+
+```bash
+# Inicia sesión en Google Cloud
+gcloud auth application-default login
+
+# Crea un nuevo proyecto (si no tienes uno)
+gcloud projects create expedientecheck-dev-123 --name="ExpedienteCheck Dev"
+
+# Vincula una cuenta de facturación a tu proyecto (requerido para Firebase Blaze)
+gcloud beta billing projects link expedientecheck-dev-123 --billing-account=XXXXX-XXXXX-XXXXX
+
+# Despliega la infraestructura base
+cd terraform
+terraform init
+terraform apply
+```
+*Nota: Al finalizar `terraform apply`, obtendrás un output llamado `hosting_url`. Esa es la URL en vivo de tu aplicación.*
 
 ### Pasos
 
@@ -97,7 +121,11 @@ cd expedientecheck-reto
 cd frontend
 npm install
 
-# 3. Instalar dependencias de las Funciones (Backend Proxy)
+# 3. Copiar las variables de entorno
+cd frontend
+cp .env.example .env.local
+
+# 4. Instalar dependencias de las Funciones (Backend Proxy)
 cd ../functions
 npm install
 cd ..

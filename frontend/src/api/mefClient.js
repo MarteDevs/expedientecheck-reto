@@ -322,9 +322,15 @@ export async function fetchGlobalStats(params = {}) {
   const sqlPimPia = `SELECT SUM(CAST("MONTO_PIA" AS float)) as pia, SUM(CAST("MONTO_PIM" AS float)) as pim FROM "${resourceId}" ${whereNoMonth}`;
 
   try {
+    const urlDevengado = new URL(API_SQL_URL, window.location.origin);
+    urlDevengado.searchParams.set('sql', sqlDevengado);
+    
+    const urlPimPia = new URL(API_SQL_URL, window.location.origin);
+    urlPimPia.searchParams.set('sql', sqlPimPia);
+
     const [resDev, resPimPia] = await Promise.all([
-      fetch(getFetchUrl(new URL(API_SQL_URL + '?sql=' + encodeURIComponent(sqlDevengado), window.location.origin).toString()), { headers: { Accept: 'application/json' } }).then(r => r.json()),
-      fetch(getFetchUrl(new URL(API_SQL_URL + '?sql=' + encodeURIComponent(sqlPimPia), window.location.origin).toString()), { headers: { Accept: 'application/json' } }).then(r => r.json())
+      fetch(getFetchUrl(urlDevengado.toString()), { headers: { Accept: 'application/json' } }).then(r => r.json()),
+      fetch(getFetchUrl(urlPimPia.toString()), { headers: { Accept: 'application/json' } }).then(r => r.json())
     ]);
 
     const dev = resDev?.result?.records?.[0]?.dev || resDev?.records?.[0]?.dev || 0;

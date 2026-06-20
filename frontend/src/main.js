@@ -282,7 +282,6 @@ function renderTable() {
  * Renderiza el estado de error
  */
 function renderError() {
-  renderStats();
   renderSearch();
   renderErrorState(tableContainer, state.error, () => loadData());
 }

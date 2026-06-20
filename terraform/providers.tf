@@ -18,9 +18,12 @@ terraform {
     }
   }
 
-  # Backend local: el estado se almacena en el directorio actual
-  # Para entornos compartidos, considerar migrar a GCS o Terraform Cloud
-  backend "local" {}
+  # Backend GCS: el estado se almacena en la nube de forma segura
+  # Soporta entornos colaborativos y versionamiento
+  backend "gcs" {
+    bucket  = "expedientecheck-tf-state"
+    prefix  = "terraform/state"
+  }
 }
 
 # Configuración del proveedor google-beta
