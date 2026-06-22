@@ -2,7 +2,7 @@
 # Configuración de proveedores de Terraform
 # ============================================================================
 # Este archivo define el proveedor google-beta, necesario para todos los
-# recursos de Firebase. Se utiliza backend local para almacenar el estado
+# recursos de Firebase. Se utiliza backend GCS para almacenar el estado
 # de Terraform en el disco del equipo.
 # ============================================================================
 

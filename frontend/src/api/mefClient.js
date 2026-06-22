@@ -329,8 +329,22 @@ export async function fetchGlobalStats(params = {}) {
     urlPimPia.searchParams.set('sql', sqlPimPia);
 
     const [resDev, resPimPia] = await Promise.all([
-      fetch(getFetchUrl(urlDevengado.toString()), { headers: { Accept: 'application/json' } }).then(r => r.json()),
-      fetch(getFetchUrl(urlPimPia.toString()), { headers: { Accept: 'application/json' } }).then(r => r.json())
+      fetch(getFetchUrl(urlDevengado.toString()), { headers: { Accept: 'application/json' } }).then(async r => {
+        if (!r.ok) throw new Error(`El servidor del MEF respondió con código ${r.status} al consultar ejecución.`);
+        try {
+          return await r.json();
+        } catch (e) {
+          throw new Error('La respuesta de estadísticas de ejecución no es un JSON válido.');
+        }
+      }),
+      fetch(getFetchUrl(urlPimPia.toString()), { headers: { Accept: 'application/json' } }).then(async r => {
+        if (!r.ok) throw new Error(`El servidor del MEF respondió con código ${r.status} al consultar presupuesto.`);
+        try {
+          return await r.json();
+        } catch (e) {
+          throw new Error('La respuesta de presupuesto PIA/PIM no es un JSON válido.');
+        }
+      })
     ]);
 
     const dev = resDev?.result?.records?.[0]?.dev || resDev?.records?.[0]?.dev || 0;
@@ -351,7 +365,7 @@ export async function fetchGlobalStats(params = {}) {
     };
   } catch (err) {
     console.error('Error fetching global stats:', err);
-    return { totalPIA: 0, totalPIM: 0, totalCertificado: 0, totalComprometido: 0, totalDevengado: 0, totalGirado: 0 };
+    throw new Error(err.message || 'No se pudieron recuperar las estadísticas globales del MEF.');
   }
 }
 

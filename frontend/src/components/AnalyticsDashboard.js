@@ -1,7 +1,6 @@
 import Chart from 'chart.js/auto';
 import { formatCurrency, formatCompactCurrency } from '../utils/formatter.js';
 import { fetchMefData, fetchGlobalStats, RESOURCE_IDS } from '../api/mefClient.js';
-import html2pdf from 'html2pdf.js';
 
 let chartTrend = null;
 let chartDonut = null;
@@ -26,11 +25,6 @@ export async function renderAnalyticsDashboard(container, options = {}) {
       <div class="analytics-header" style="align-items: flex-start; flex-direction: column; gap: 0.5rem;">
         <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
           <h2>Dashboard Analítico</h2>
-          <div class="analytics-actions">
-            <button id="btn-export-pdf" class="btn-export" style="display: none;">
-              <span>🖨️</span> Exportar PDF
-            </button>
-          </div>
         </div>
         <p style="font-size: var(--font-size-sm); color: var(--color-text-muted);">
           <span>🔍 Analizando:</span> <strong>${filterSubtitle}</strong>
@@ -86,9 +80,6 @@ export async function renderAnalyticsDashboard(container, options = {}) {
         `;
         return;
       }
-
-      // Mostrar botones de exportación
-      document.getElementById('btn-export-pdf').style.display = 'flex';
 
       // Procesar datos para KPIs
       const kpiData = calculateKPIs(records, globalStats);
@@ -170,16 +161,24 @@ export async function renderAnalyticsDashboard(container, options = {}) {
       // Inicializar Gráficos
       initCharts(records, globalStats);
 
-      // Event Listeners para exportar
-      document.getElementById('btn-export-pdf').onclick = exportToPDF;
+      // Event Listeners para exportar - Eliminados
 
     } catch (error) {
       document.getElementById('analytics-content').innerHTML = `
-        <div class="error-state" style="grid-column: span 12; text-align: center; padding: 2rem;">
-          <h3 style="color: var(--color-danger); margin-bottom: 1rem;">Error al analizar</h3>
-          <p>${error.message}</p>
+        <div class="error-state" style="grid-column: span 12; text-align: center; padding: 2.5rem; display: flex; flex-direction: column; align-items: center; gap: 1rem; background: var(--color-bg-secondary); border-radius: 12px; border: 1px solid rgba(239, 68, 68, 0.2);">
+          <div style="font-size: 3.5rem; margin-bottom: 0.5rem;">⚠️</div>
+          <h3 style="color: var(--color-danger); margin: 0; font-size: var(--font-size-lg);">Error al cargar los datos del análisis</h3>
+          <p style="color: var(--color-text-muted); max-width: 550px; margin: 0; font-size: var(--font-size-base); line-height: 1.5;">El servidor de datos del MEF no respondió a tiempo o experimentó un problema de conexión temporal.</p>
+          <div style="font-size: var(--font-size-xs); color: var(--color-danger); background: rgba(239, 68, 68, 0.08); padding: 0.75rem 1.25rem; border-radius: 6px; font-family: monospace; max-width: 90%; overflow-x: auto; white-space: pre-wrap; word-break: break-all; margin: 0.5rem 0 1rem 0; border: 1px solid rgba(239, 68, 68, 0.15); text-align: left;">${error.message}</div>
+          <button id="btn-analytics-retry" class="btn-primary" style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1.75rem; border-radius: 8px; font-weight: 600; cursor: pointer; border: none; background: var(--color-primary); color: white; transition: background 0.2s;">
+            🔄 Reintentar análisis
+          </button>
         </div>
       `;
+      const retryBtn = document.getElementById('btn-analytics-retry');
+      if (retryBtn) {
+        retryBtn.onclick = () => renderAnalyticsDashboard(container, options);
+      }
     }
 }
 
@@ -524,15 +523,4 @@ function initCharts(records, globalStats) {
   });
 }
 
-function exportToPDF() {
-  const element = document.getElementById('analytics-content');
-  const opt = {
-    margin:       [10, 10, 10, 10], // top, left, bottom, right
-    filename:     'expedientecheck_analisis.pdf',
-    image:        { type: 'jpeg', quality: 0.98 },
-    html2canvas:  { scale: 2, useCORS: true, logging: false },
-    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' }
-  };
-  
-  html2pdf().set(opt).from(element).save();
-}
+// exportToPDF function removed
