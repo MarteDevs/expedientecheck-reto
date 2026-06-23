@@ -11,47 +11,48 @@ El siguiente diagrama muestra los componentes principales del sistema y cómo in
 ```mermaid
 graph TD
     %% Usuarios y Clientes
-    User((Usuario Final))
+    Usuario((Usuario Final))
     
     %% Nivel Frontend (Firebase Hosting)
-    subgraph Frontend [Capa de Presentación / Cliente]
-        Vite[Vite + Vanilla JS]
+    subgraph Frontend [Capa de Presentacion]
+        Vite[Vite y Vanilla JS]
         Router[Enrutador Inteligente]
     end
 
     %% Nivel Proxy (Firebase Cloud Functions)
-    subgraph Backend [Capa Intermedia / Proxy]
-        Function(Cloud Function: mefProxy)
-        Firestore[(Firestore Cache)]
+    subgraph Backend [Capa Intermedia]
+        BFF(Cloud Function Proxy)
+        FirestoreDB[(Firestore Cache)]
     end
 
     %% Nivel Externo
     subgraph Externa [Proveedor Externo]
-        MEF_API[API Datos Abiertos MEF<br/>CKAN]
+        MEFAPI[API Datos Abiertos MEF]
     end
 
     %% Infraestructura y CI/CD
-    subgraph Infra [Infraestructura / DevOps]
+    subgraph Infra [DevOps]
         TF{Terraform}
-        GH[GitHub Actions CI/CD]
+        GH[GitHub Actions CI CD]
     end
 
     %% Relaciones
-    User -->|Interactúa (Búsqueda/Filtro)| Vite
-    Vite -->|Petición HTTP| Router
-    Router -->|datastore_search| Function
-    Router -->|datastore_search_sql| Function
-    Function <-->|1. Verifica Hash URL| Firestore
-    Function -->|2. Cache Miss (Petición HTTP)| MEF_API
-    MEF_API -.->|Respuesta (Puede fallar 500/504)| Function
-    Function -.->|3. Guarda data (Cache Hit)| Firestore
+    Usuario -->|Interactua| Vite
+    Vite -->|Peticion HTTP| Router
+    Router -->|datastore search| BFF
+    Router -->|datastore search sql| BFF
+    BFF -->|Paso 1 Verifica Hash URL| FirestoreDB
+    FirestoreDB -->|Paso 2 Retorna Cache| BFF
+    BFF -->|Paso 3 Cache Miss| MEFAPI
+    MEFAPI -.->|Respuesta HTTP| BFF
+    BFF -.->|Paso 4 Guarda data| FirestoreDB
     
     %% Relaciones DevOps
-    TF -.->|Aprovisiona| Firestore
-    TF -.->|Aprovisiona| Function
+    TF -.->|Aprovisiona| FirestoreDB
+    TF -.->|Aprovisiona| BFF
     TF -.->|Aprovisiona| Vite
-    GH -.->|Ejecuta Tests y Despliega| Frontend
-    GH -.->|Ejecuta Tests y Despliega| Backend
+    GH -.->|Ejecuta Tests y Despliega| Vite
+    GH -.->|Ejecuta Tests y Despliega| BFF
     
     classDef frontend fill:#3b82f6,stroke:#1d4ed8,color:white;
     classDef backend fill:#f59e0b,stroke:#b45309,color:white;
@@ -59,8 +60,8 @@ graph TD
     classDef infra fill:#6366f1,stroke:#4338ca,color:white;
     
     class Vite,Router frontend;
-    class Function,Firestore backend;
-    class MEF_API external;
+    class BFF,FirestoreDB backend;
+    class MEFAPI external;
     class TF,GH infra;
 ```
 
@@ -74,38 +75,45 @@ Aquí se grafica exactamente qué ocurre paso a paso cuando un usuario hace una 
 sequenceDiagram
     autonumber
     actor U as Usuario
-    participant FE as Frontend (JS)
-    participant CF as Cloud Function (Proxy)
-    participant FS as Firestore (Caché)
+    participant FE as Frontend JS
+    participant CF as Cloud Function Proxy
+    participant FS as Firestore Cache
     participant MEF as API del MEF
     
-    U->>FE: Ingresa filtros (Ej: "EDUCACION") y hace clic en Buscar
-    Note over FE: El Enrutador Inteligente decide:<br/>Filtros = datastore_search_sql con LIKE
+    U->>FE: Ingresa filtros y hace clic en Buscar
+    Note over FE: El Enrutador decide<br/>Filtros datastore search sql
     
-    FE->>CF: GET /api/mef/datastore_search_sql?sql=SELECT...
+    FE->>CF: GET /api/mef/datastore_search_sql
     
-    Note over CF: Genera SHA-256 de la URL<br/>(Ej: e159cdf8...)
+    Note over CF: Genera SHA256 de la URL
     
-    CF->>FS: ¿Existe este Hash en caché?
+    CF->>FS: Existe este Hash en cache?
     
-    alt Caché Hit (Datos ya consultados)
-        FS-->>CF: Sí, aquí está la data (0.03s)
-        CF-->>FE: HTTP 200 (Datos del Caché)
+    alt Cache Hit (Datos ya consultados)
+        FS-->>CF: Si, aqui esta la data
+        CF-->>FE: HTTP 200 Datos del Cache
         FE-->>U: Muestra tabla al instante
-    else Caché Miss (Búsqueda Nueva)
+    else Cache Miss (Busqueda Nueva)
         FS-->>CF: No existe
-        CF->>MEF: GET /v1/datastore_search_sql?sql=...
         
-        alt MEF responde correctamente
-            MEF-->>CF: HTTP 200 (Datos masivos)
-            CF->>FS: Guarda la data bajo el Hash (Caché)
-            CF-->>FE: HTTP 200 (Datos frescos)
+        loop Reintentos con Backoff
+            CF->>MEF: GET /v1/datastore_search_sql
+            alt MEF responde correctamente
+                MEF-->>CF: HTTP 200 Datos masivos
+                Note over CF: Termina el loop con exito
+            else MEF falla 503 o Timeout
+                Note over CF: Espera y reintenta
+            end
+        end
+        
+        alt Consulta exitosa en algun intento
+            CF->>FS: Guarda la data bajo el Hash
+            CF-->>FE: HTTP 200 Datos frescos
             FE-->>U: Muestra tabla
-        else MEF se cae o satura (Timeout)
-            MEF-->>CF: HTTP 500 / 504 Gateway Timeout
-            CF-->>FE: HTTP 500
-            Note over FE: Manejo de errores elegante
-            FE-->>U: Pantalla UI "Error del servidor (Mantenimiento)"
+        else Todos los intentos fallan
+            CF-->>FE: HTTP 503 Error
+            Note over FE: Manejo de errores interactivo
+            FE-->>U: Pantalla UI Error al cargar datos
         end
     end
 ```
@@ -127,11 +135,14 @@ sequenceDiagram
   - Si hay texto libre -> Endpoint `datastore_search` (usa el índice ultra rápido `_full_text` del motor PostgreSQL del MEF).
   - Si hay filtros condicionales -> Endpoint `datastore_search_sql` con operador `LIKE` para simular búsquedas menos estrictas y eludir los bloqueos internos de CKAN.
 
-### C. Proxy & Caché Híbrida (Firestore + Cloud Functions)
-- **Problema:** Los navegadores bloquean peticiones directas de otro dominio por seguridad (Error CORS). Además, el API MEF es altamente inestable.
+### C. Proxy, Resiliencia & Caché Híbrida (Firestore + Cloud Functions + RAM Client)
+- **Problema:** Los navegadores bloquean peticiones directas de otro dominio por seguridad (Error CORS). Además, el API MEF es altamente inestable (503s frecuentes) y lenta.
 - **Solución:** 
-  1. La **Cloud Function** actúa como puente de backend para evitar los bloqueos CORS del navegador.
-  2. Implementamos una base de datos **Firestore** como capa intermedia de caché. Cada URL consultada se cifra en un Hash SHA-256. El resultado se almacena íntegramente. Si el estado gubernamental colapsa, la aplicación sigue viva sirviendo la data previamente indexada a los usuarios.
+  1. La **Cloud Function** actúa como puente de backend para evitar los bloqueos CORS del navegador y expone endpoints filtrados por seguridad.
+  2. **Estrategia de Reintentos (Backend):** Implementamos un wrapper de reintentos automáticos con backoff exponencial. Si el MEF lanza un 503, la Cloud Function reintenta silenciosamente hasta 3 veces antes de fallar.
+  3. **Caché en Base de Datos (Nivel 2):** Implementamos una base de datos **Firestore** como capa intermedia de caché en el servidor. Cada URL se cifra en un Hash SHA-256, almacenando el resultado por 24 horas.
+  4. **Caché en Memoria (Nivel 1):** El frontend implementa un mapa en memoria RAM local para almacenar tanto los resultados de la tabla como los cálculos consolidados del Dashboard de BI, reduciendo las llamadas de red redundantes en <1ms al cambiar de pestaña.
+  5. **Evasión de AdBlockers:** Excluimos el uso del SDK de Firestore para el flujo de caché en el cliente (que suele ser bloqueado por AdBlockers), delegando esa comunicación a través del canal HTTP seguro de la Cloud Function.
 
 ### D. Automatización e Infraestructura (Terraform + GitHub Actions)
 - **Terraform (IaC):** Toda la infraestructura en Google Cloud (APIs, cuentas de servicio) se declaró como código (`.tf`). Esto permite destruir y reconstruir un clon exacto de los servidores en segundos, separando entornos de `DEV` y `PROD`.

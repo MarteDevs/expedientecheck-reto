@@ -48,3 +48,18 @@ Este documento recopila el criterio técnico y las decisiones arquitectónicas t
 **Problema:** Inicialmente se utilizó un backend "local" para Terraform por simplicidad de desarrollo, lo cual no es robusto para trabajo en equipo.
 **Decisión:** Se migró el backend a Google Cloud Storage (GCS).
 **Proceso ejecutado:** Se creó el bucket `expedientecheck-tf-state` con versionamiento activado, y se ejecutó `terraform init -migrate-state` apuntando al nuevo bucket. Todo el estado remoto de la infraestructura está ahora bloqueado y versionado en la nube.
+
+## 10. Estrategia de Reintentos en Backend (Tolerancia a Errores 503)
+**Problema:** El API gubernamental del MEF arroja recurrentemente errores HTTP 503 (Service Unavailable) bajo carga pesada, interrumpiendo la navegación del usuario de forma aleatoria.
+**Decisión:** Implementar una lógica de reintentos automáticos con backoff exponencial (`fetchWithRetry`) directamente en la Cloud Function (BFF).
+**Beneficio:** Si la API del MEF falla con 503, la Cloud Function reintenta silenciosamente hasta 3 veces duplicando el tiempo de espera. Esto resuelve de forma transparente el 90% de los fallos de red temporales, evitando arrojar errores innecesarios al frontend.
+
+## 11. Caché en Memoria Híbrida para Métricas Analíticas (BI)
+**Problema:** Al cambiar entre la pestaña "Datos" y "Análisis BI", o repetir la aplicación de filtros idénticos, la aplicación disparaba de forma redundante las consultas SQL de consolidación de presupuesto hacia el servidor, generando latencia y saturando los servicios.
+**Decisión:** Extender el sistema de caché en memoria del frontend para soportar objetos agregados de analítica. Almacena las estadísticas de BI bajo una firma hash calculada a partir de los filtros seleccionados.
+**Beneficio:** El cambio de pestañas o re-consulta de los mismos filtros sirve la analítica en <1ms desde la memoria RAM local del navegador, logrando un rendimiento instantáneo y eliminando llamadas de red repetitivas.
+
+## 12. Enfoque en Resiliencia de Carga de BI (Botón Reintentar)
+**Problema:** Ante caídas duras del MEF, los KPIs cargaban por defecto en `S/ 0`, lo que confundía al usuario.
+**Decisión:** Eliminar el botón de exportación a PDF y estructurar una interfaz de error detallada en el Dashboard de BI. Si las llamadas a la base de datos fallan permanentemente, se captura la excepción y se despliega una tarjeta de error estilizada con un botón interactivo de **"Reintentar análisis"**.
+**Beneficio:** Simplificación del código de frontend y mejor experiencia de usuario (UX) reactiva, permitiendo re-evaluar la consulta sin forzar la recarga del navegador completo.

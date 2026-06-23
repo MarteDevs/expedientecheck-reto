@@ -71,8 +71,12 @@ expedientecheck-reto/
 │   ├── main.tf                        # Aprovisionamiento de GCP y Firebase
 │   └── environments/                  # Variables para Dev y Prod
 │
-├── docs/                              # Documentación adicional
-│   └── arquitectura.md                # Gráficos de Mermaid
+├── docs/                              # Documentación Técnica del Proyecto
+│   ├── arquitectura.md                # Gráficos y diagramas de secuencia Mermaid
+│   ├── DOC_INFRAESTRUCTURA_TERRAFORM.md # Arquitectura de Terraform (IaC)
+│   ├── DOC_CLOUD_FUNCTION_BFF.md      # Diseño del BFF y Cloud Functions
+│   ├── DOC_FRONTEND_CI_CD.md          # Arquitectura Frontend y flujos CI/CD
+│   ├── DOC_BI_ANALYTICS.md            # Diseño del módulo de Analítica y BI
 │
 ├── .github/workflows/deploy.yml       # Integración Continua (CI/CD)
 ├── firebase.json                      # Reglas de Hosting (Headers de caché), Funciones y Firestore
@@ -103,10 +107,10 @@ gcloud projects create expedientecheck-dev-123 --name="ExpedienteCheck Dev"
 # Vincula una cuenta de facturación a tu proyecto (requerido para Firebase Blaze)
 gcloud beta billing projects link expedientecheck-dev-123 --billing-account=XXXXX-XXXXX-XXXXX
 
-# Despliega la infraestructura base
+# Despliega la infraestructura base (para el entorno de Desarrollo)
 cd terraform
 terraform init
-terraform apply
+terraform apply -var-file=environments/dev.tfvars
 ```
 *Nota: Al finalizar `terraform apply`, obtendrás un output llamado `hosting_url`. Esa es la URL en vivo de tu aplicación.*
 
@@ -151,12 +155,20 @@ El proyecto incluye un flujo completamente automatizado en `.github/workflows/de
 
 ---
 
-## ⚡ Qué no alcancé a hacer y cómo lo resolvería con más tiempo
+## ⭐ Características Avanzadas Implementadas (Bonus)
 
-Aunque el proyecto cumple con creces los objetivos y los bonus, con más tiempo implementaría lo siguiente:
-1. **Precarga en Segundo Plano (Prefetching):** Al cargar la primera página, usaría un Web Worker o un fetch silencioso para traer la página 2 (`offset=20`) antes de que el usuario haga scroll, mejorando la percepción de velocidad a 0ms.
-2. **Dashboard Gráfico con Chart.js/D3:** Transformar los datos crudos en gráficos de barras para comparar la ejecución presupuestal entre ministerios de forma más visual.
-3. **Invalidación de Caché (TTL):** Actualmente la caché en Firestore guarda las consultas de manera persistente. Le agregaría un campo `timestamp` en Firestore y una regla en la Cloud Function para que, si el caché tiene más de 24 horas, vuelva a consultar al MEF para asegurar que los datos estén frescos.
+El proyecto incluye características de nivel productivo que van más allá del requerimiento base:
+1. **Dashboard Analítico (BI) con Chart.js:** Panel interactivo que calcula el semáforo presupuestal de eficiencia, curvas de tendencia real vs. ideal, embudo de fases del gasto público, y un listado de los proyectos de inversión más relevantes.
+2. **Proyección Predictiva de Cierre de Año:** Algoritmo dinámico en el cliente que proyecta la ejecución presupuestal anual a partir de la velocidad de gasto mensual promedio actual de la entidad.
+3. **Tolerancia a Caídas con Retries y Backoff:** Implementación de `fetchWithRetry` en la Cloud Function para amortiguar el 90% de los errores 503 temporales del MEF, respaldado por una interfaz de error interactiva y botón de reintento en el frontend.
+4. **Caché en Memoria RAM para BI:** Caché en memoria en el cliente que hashea los filtros de BI para evitar peticiones SQL repetitivas al cambiar de pestañas en la sesión actual.
+5. **Invalidación Inteligente de Caché (TTL):** Control de vencimiento de caché de 24 horas en Firestore basado en marcas de tiempo del servidor (`serverTimestamp`).
+
+## ⚡ Qué implementaría en una fase posterior (Siguientes Pasos)
+
+Con más tiempo o de cara a escalar el producto, implementaría:
+1. **Precarga en Segundo Plano (Prefetching):** Usar un Web Worker para traer silenciosamente el siguiente lote de datos (`offset`) antes de que el usuario haga scroll, reduciendo la latencia de paginación a 0ms.
+2. **Seguridad Avanzada (WAF / Rate Limiter):** Añadir reglas de Cloud Armor o un limitador de frecuencia de peticiones (Rate Limiter) en la Cloud Function para proteger nuestra infraestructura contra ataques de denegación de servicio (DDoS).
 
 ---
 

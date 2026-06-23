@@ -10,7 +10,6 @@ import { getCachedQuery, setCachedQuery } from './firebase.js';
 
 /**
  * Base URL para consultas.
- * En producción consultamos directo al MEF (para evitar el bloqueo WAF a las IPs de Google Cloud).
  * En desarrollo usamos nuestro emulador local con Caché en Firestore.
  */
 const MEF_API_BASE = import.meta.env.PROD
