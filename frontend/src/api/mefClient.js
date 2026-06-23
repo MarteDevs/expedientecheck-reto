@@ -277,6 +277,20 @@ export async function fetchGlobalStats(params = {}) {
     filters = {},
   } = params;
 
+  // Clave de caché para estadísticas globales de BI
+  const cacheKey = `globalStats:${resourceId}:${query}:${JSON.stringify(filters)}`;
+
+  // Intentar servir desde la caché en memoria del cliente
+  try {
+    const cached = await getCachedQuery(cacheKey);
+    if (cached) {
+      console.log(`[Caché en Memoria] Hit para estadísticas globales.`);
+      return cached;
+    }
+  } catch (err) {
+    console.warn('[Caché] Error al leer caché de estadísticas:', err);
+  }
+
   const conditionsAll = [];
   const activeFilters = Object.entries(filters).filter(([, v]) => v && v !== '');
   
@@ -355,7 +369,7 @@ export async function fetchGlobalStats(params = {}) {
     const pia = resPimPia?.result?.records?.[0]?.pia || resPimPia?.records?.[0]?.pia || 0;
     const pim = resPimPia?.result?.records?.[0]?.pim || resPimPia?.records?.[0]?.pim || 0;
 
-    return {
+    const statsResult = {
       totalPIA: pia,
       totalPIM: pim,
       totalCertificado: cert,
@@ -363,6 +377,20 @@ export async function fetchGlobalStats(params = {}) {
       totalDevengado: dev,
       totalGirado: gir
     };
+
+    // Guardar en la caché asíncronamente
+    try {
+      const cachePromise = setCachedQuery(cacheKey, statsResult);
+      if (cachePromise && typeof cachePromise.catch === 'function') {
+        cachePromise.catch((err) => {
+          console.warn('[Caché] Error al guardar caché de estadísticas:', err);
+        });
+      }
+    } catch (err) {
+      console.warn('[Caché] Error al guardar caché de estadísticas:', err);
+    }
+
+    return statsResult;
   } catch (err) {
     console.error('Error fetching global stats:', err);
     throw new Error(err.message || 'No se pudieron recuperar las estadísticas globales del MEF.');

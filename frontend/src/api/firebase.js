@@ -63,7 +63,8 @@ export async function getCachedQuery(rawKey) {
       
       if (ageMs < twelveHours) {
         console.log(`[Caché en Memoria] Hit para: ${rawKey.substring(0, 60)}...`);
-        return cached;
+        // Si es una caché genérica sin records, retorna la propiedad data
+        return cached.data !== undefined ? cached.data : cached;
       } else {
         memoryCache.delete(key);
       }
@@ -78,16 +79,22 @@ export async function getCachedQuery(rawKey) {
 /**
  * Guarda los resultados de una consulta en la caché en memoria
  * @param {string} rawKey - Clave sin hashear
- * @param {Object} data - Datos a guardar { records, total, fields }
+ * @param {Object} data - Datos a guardar (tabla o estadísticas de BI)
  */
 export async function setCachedQuery(rawKey, data) {
-  if (!data || !data.records || data.records.length === 0) return;
+  if (!data) return;
 
   const key = await hashKey(rawKey);
+  
+  // Soporta tanto la estructura de registros de tabla como datos genéricos de BI
   const cacheObj = {
-    records: data.records,
-    total: data.total,
-    fields: data.fields,
+    ...(data.records ? {
+      records: data.records,
+      total: data.total,
+      fields: data.fields,
+    } : {
+      data: data
+    }),
     timestamp: Date.now(),
   };
 

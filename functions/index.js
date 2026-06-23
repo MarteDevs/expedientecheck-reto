@@ -19,6 +19,34 @@ const CACHE_TTL = 24 * 60 * 60 * 1000;
 const MEF_BASE_URL = "https://api.datosabiertos.mef.gob.pe/DatosAbiertos/v1";
 
 /**
+ * Realiza peticiones fetch con reintentos automáticos y backoff exponencial
+ * para tolerar fallas de red temporales (como 503 Service Unavailable).
+ */
+async function fetchWithRetry(url, options = {}, retries = 3, delay = 500) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      console.log(`[FETCH MEF ${i + 1}/${retries}] Requesting: ${url}`);
+      const response = await fetch(url, options);
+
+      // Si es exitoso o un error de cliente (4xx), no reintentar
+      if (response.ok || (response.status >= 400 && response.status < 500)) {
+        return response;
+      }
+
+      throw new Error(`Server responded with status: ${response.status}`);
+    } catch (error) {
+      const isLast = i === retries - 1;
+      if (isLast) {
+        throw error;
+      }
+      console.warn(`[FETCH FAILED] Retrying in ${delay}ms... Error: ${error.message}`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      delay *= 2; // Backoff exponencial
+    }
+  }
+}
+
+/**
  * Genera una clave única para la combinación de parámetros de búsqueda.
  */
 function generateCacheKey(queryParams) {
@@ -88,14 +116,14 @@ exports.mefProxy = onRequest(
           url.searchParams.append(key, value);
         });
 
-        console.log(`Fetching: ${url.toString()}`);
+        console.log(`Fetching with retry: ${url.toString()}`);
         
-        const mefResponse = await fetch(url.toString(), {
+        const mefResponse = await fetchWithRetry(url.toString(), {
           headers: {
             "Accept": "application/json",
             "User-Agent": "ExpedienteCheck-Proxy/1.0",
           },
-        });
+        }, 3, 500); // 3 reintentos, empezando con 500ms de retraso
 
         if (!mefResponse.ok) {
           throw new Error(`MEF API responded with status: ${mefResponse.status}`);
