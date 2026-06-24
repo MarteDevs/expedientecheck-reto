@@ -9,7 +9,7 @@ Este documento detalla la arquitectura de software, infraestructura y flujos de 
 El siguiente diagrama muestra los componentes principales del sistema y cómo interactúan desde que un usuario accede hasta que la infraestructura es provisionada.
 
 ```mermaid
-graph TD
+graph LR
     %% Usuarios y Clientes
     Usuario((Usuario Final))
     
@@ -30,39 +30,57 @@ graph TD
         MEFAPI[API Datos Abiertos MEF]
     end
 
-    %% Infraestructura y CI/CD
-    subgraph Infra [DevOps]
-        TF{Terraform}
-        GH[GitHub Actions CI CD]
-    end
-
     %% Relaciones
     Usuario -->|Interactua| Vite
     Vite -->|Peticion HTTP| Router
-    Router -->|datastore search| BFF
-    Router -->|datastore search sql| BFF
-    BFF -->|Paso 1 Verifica Hash URL| FirestoreDB
-    FirestoreDB -->|Paso 2 Retorna Cache| BFF
-    BFF -->|Paso 3 Cache Miss| MEFAPI
+    Router -->|Peticiones a la API| BFF
+    BFF -->|1 Verifica Hash| FirestoreDB
+    FirestoreDB -->|2 Retorna Cache| BFF
+    BFF -->|3 Cache Miss| MEFAPI
     MEFAPI -.->|Respuesta HTTP| BFF
-    BFF -.->|Paso 4 Guarda data| FirestoreDB
-    
-    %% Relaciones DevOps
-    TF -.->|Aprovisiona| FirestoreDB
-    TF -.->|Aprovisiona| BFF
-    TF -.->|Aprovisiona| Vite
-    GH -.->|Ejecuta Tests y Despliega| Vite
-    GH -.->|Ejecuta Tests y Despliega| BFF
+    BFF -.->|4 Guarda data| FirestoreDB
     
     classDef frontend fill:#3b82f6,stroke:#1d4ed8,color:white;
     classDef backend fill:#f59e0b,stroke:#b45309,color:white;
     classDef external fill:#10b981,stroke:#047857,color:white;
-    classDef infra fill:#6366f1,stroke:#4338ca,color:white;
     
     class Vite,Router frontend;
     class BFF,FirestoreDB backend;
     class MEFAPI external;
-    class TF,GH infra;
+```
+
+### 1.1 Diagrama de Infraestructura y DevOps
+
+Este diagrama muestra cómo se aprovisionan los componentes y cómo se despliega el código de manera automatizada.
+
+```mermaid
+graph TD
+    %% Infraestructura y CI/CD
+    subgraph DevOps [Aprovisionamiento y CI CD]
+        TF{Terraform}
+        GH[GitHub Actions]
+    end
+
+    %% Componentes Reales
+    subgraph Cloud [GCP y Firebase]
+        Hosting[Firebase Hosting]
+        CloudFunc(Cloud Function Proxy)
+        DB[(Firestore Database)]
+    end
+
+    %% Relaciones
+    TF -->|1 Aprovisiona Base de Datos| DB
+    TF -->|2 Habilita API y Servicios| CloudFunc
+    TF -->|3 Crea Web App| Hosting
+    GH -.->|Ejecuta Pruebas Unitarias| Hosting
+    GH -->|Despliega Codigo| CloudFunc
+    GH -->|Despliega Assets Estaticos| Hosting
+    
+    classDef devops fill:#6366f1,stroke:#4338ca,color:white;
+    classDef cloud fill:#64748b,stroke:#475569,color:white;
+    
+    class TF,GH devops;
+    class Hosting,CloudFunc,DB cloud;
 ```
 
 ---
