@@ -2,51 +2,49 @@
 
 > Mini-producto funcional que consume la API pública de Datos Abiertos del MEF para visualizar datos de **Ejecución Presupuestal** del Perú. Desplegado en Firebase (Hosting y Cloud Functions), con caché en Firestore e infraestructura aprovisionada vía Terraform.
 
----
+***
 
 ## 🌐 Enlaces
 
-| Ambiente | URL |
-|----------|-----|
-| **Desarrollo (DEV)** | [https://expedientecheck-dev-123.web.app](https://expedientecheck-dev-123.web.app) |
+| Ambiente              | URL                                                       |
+| --------------------- | --------------------------------------------------------- |
+| **Desarrollo (DEV)**  | <https://expedientecheck-dev-123.web.app>                 |
 | **Producción (PROD)** | *(Automatizado vía GitHub Actions al crear release tags)* |
 
----
+***
 
-## 🏗️ Arquitectura y Flujos Inteligentes (NUEVO)
+## 🏗️ Arquitectura y Flujos Inteligentes 
 
 Ante la inestabilidad de la API gubernamental del MEF (CKAN) que maneja más de **11 millones de registros**, implementamos una arquitectura resiliente y **Flujos de Consulta Inteligentes (Smart Routing)**:
 
 1. **Proxy + Caché Híbrida (Firestore & Cloud Functions):**
    Las consultas del Frontend no van directo al MEF (para evitar errores CORS y proteger al cliente de timeouts). Pasan por un Cloud Function (`mefProxy`) que revisa si la consulta exacta (vía Hash SHA-256) ya existe en Firestore. Si existe, la sirve en milisegundos. Si no, va al MEF, la guarda y responde. **Esto evita que la app colapse cuando el gobierno se cae.**
-
 2. **Smart Routing (SQL vs. Estándar):**
    - **Búsqueda Libre:** Usa el endpoint `datastore_search` (aprovechando el índice ultra-rápido `_full_text` del MEF).
    - **Filtros por Categoría (Dropdowns):** Usa `datastore_search_sql` con la cláusula `LIKE` para eludir conflictos severos (error `409`) que da el API al concatenar múltiples filtros estrictos.
-
 3. **Valores Estáticos de Arranque (Fallbacks):**
    Para evitar saturar la base de datos con peticiones `SELECT DISTINCT` gigantescas que bloquean la renderización inicial, los dropdowns se nutren de listas estáticas previamente mapeadas en el código.
 
 **Nota sobre los entornos (Proxy vs Rewrite):** En el entorno local (desarrollo), `Vite` hace de proxy para la ruta `/api/mef` apuntando directo al Emulador o API externa. En Producción, `firebase.json` tiene una regla de `rewrite` para que cualquier solicitud a `/api/mef/**` sea redirigida internamente a la Cloud Function `mefProxy`.
 
-*(Para más detalle sobre las decisiones técnicas, consulta el archivo [DECISIONS.md](DECISIONS.md) y el diagrama en [docs/arquitectura.md](docs/arquitectura.md))*
+*(Para más detalle sobre las decisiones técnicas, consulta el archivo* *[DECISIONS.md](DECISIONS.md)* *y el diagrama en* *[docs/arquitectura.md](docs/arquitectura.md))*
 
----
+***
 
 ## 🛠️ Stack Tecnológico
 
-| Capa | Tecnología | Justificación |
-|------|-----------|---------------|
-| **Frontend** | Vite + Vanilla JS | Bundler rápido, sin overhead de frameworks pesados (React/Vue). Demuestra dominio sólido del DOM. |
-| **Estilos** | CSS Custom Properties | Design system (Glassmorphism, Dark Theme) sin dependencias externas. |
-| **Backend / Proxy** | Node.js + Firebase Cloud Functions | Previene CORS y encapsula la lógica de la caché SHA-256. |
-| **Base de Datos** | Firebase Firestore | Actúa como Memoria Caché persistente para las respuestas del MEF. |
-| **API Externa** | Datos Abiertos MEF (CKAN) | Fuente de verdad de la Ejecución Presupuestal 2024. |
-| **Infraestructura** | Terraform | Infraestructura como Código (IaC). Separa de forma replicable DEV y PROD. |
-| **CI/CD** | GitHub Actions | Ejecuta tests y sube el despliegue al hacer push a la rama `main`. |
-| **Testing** | Vitest | Framework de pruebas ultrarrápido para validar el cliente HTTP (`mefClient`). |
+| Capa                | Tecnología                         | Justificación                                                                                     |
+| ------------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------- |
+| **Frontend**        | Vite + Vanilla JS                  | Bundler rápido, sin overhead de frameworks pesados (React/Vue). Demuestra dominio sólido del DOM. |
+| **Estilos**         | CSS Custom Properties              | Design system (Glassmorphism, Dark Theme) sin dependencias externas.                              |
+| **Backend / Proxy** | Node.js + Firebase Cloud Functions | Previene CORS y encapsula la lógica de la caché SHA-256.                                          |
+| **Base de Datos**   | Firebase Firestore                 | Actúa como Memoria Caché persistente para las respuestas del MEF.                                 |
+| **API Externa**     | Datos Abiertos MEF (CKAN)          | Fuente de verdad de la Ejecución Presupuestal 2024.                                               |
+| **Infraestructura** | Terraform                          | Infraestructura como Código (IaC). Separa de forma replicable DEV y PROD.                         |
+| **CI/CD**           | GitHub Actions                     | Ejecuta tests y sube el despliegue al hacer push a la rama `main`.                                |
+| **Testing**         | Vitest                             | Framework de pruebas ultrarrápido para validar el cliente HTTP (`mefClient`).                     |
 
----
+***
 
 ## 📁 Estructura del Proyecto
 
@@ -83,11 +81,12 @@ expedientecheck-reto/
 └── firestore.rules                    # Reglas de seguridad
 ```
 
----
+***
 
 ## 🚀 Cómo Correr Localmente
 
 ### Prerrequisitos
+
 - **Node.js** >= 18
 - **npm** >= 9
 - **Firebase CLI** (`npm install -g firebase-tools`)
@@ -95,6 +94,7 @@ expedientecheck-reto/
 - **Google Cloud SDK (gcloud CLI)**
 
 ### 1. Configuración de GCP y Terraform
+
 Para que Terraform pueda aprovisionar los recursos, debes configurar tus credenciales de Google Cloud:
 
 ```bash
@@ -112,7 +112,8 @@ cd terraform
 terraform init
 terraform apply -var-file=environments/dev.tfvars
 ```
-*Nota: Al finalizar `terraform apply`, obtendrás un output llamado `hosting_url`. Esa es la URL en vivo de tu aplicación.*
+
+*Nota: Al finalizar* *`terraform apply`, obtendrás un output llamado* *`hosting_url`. Esa es la URL en vivo de tu aplicación.*
 
 ### Pasos
 
@@ -143,7 +144,7 @@ cd frontend
 npm run dev
 ```
 
----
+***
 
 ## 🔄 Flujo CI/CD (GitHub Actions)
 
@@ -153,11 +154,12 @@ El proyecto incluye un flujo completamente automatizado en `.github/workflows/de
 2. El servidor de GitHub ejecuta `npm run test` (Vitest) para asegurar la integridad de la lógica de negocio.
 3. Si todo está en verde, inyecta las credenciales seguras (Secrets) y hace un `firebase deploy --force` automático hacia el ambiente respectivo.
 
----
+***
 
 ## ⭐ Características Avanzadas Implementadas (Bonus)
 
 El proyecto incluye características de nivel productivo que van más allá del requerimiento base:
+
 1. **Dashboard Analítico (BI) con Chart.js:** Panel interactivo que calcula el semáforo presupuestal de eficiencia, curvas de tendencia real vs. ideal, embudo de fases del gasto público, y un listado de los proyectos de inversión más relevantes.
 2. **Proyección Predictiva de Cierre de Año:** Algoritmo dinámico en el cliente que proyecta la ejecución presupuestal anual a partir de la velocidad de gasto mensual promedio actual de la entidad.
 3. **Tolerancia a Caídas con Retries y Backoff:** Implementación de `fetchWithRetry` en la Cloud Function para amortiguar el 90% de los errores 503 temporales del MEF, respaldado por una interfaz de error interactiva y botón de reintento en el frontend.
@@ -167,10 +169,13 @@ El proyecto incluye características de nivel productivo que van más allá del 
 ## ⚡ Qué implementaría en una fase posterior (Siguientes Pasos)
 
 Con más tiempo o de cara a escalar el producto, implementaría:
+
 1. **Precarga en Segundo Plano (Prefetching):** Usar un Web Worker para traer silenciosamente el siguiente lote de datos (`offset`) antes de que el usuario haga scroll, reduciendo la latencia de paginación a 0ms.
 2. **Seguridad Avanzada (WAF / Rate Limiter):** Añadir reglas de Cloud Armor o un limitador de frecuencia de peticiones (Rate Limiter) en la Cloud Function para proteger nuestra infraestructura contra ataques de denegación de servicio (DDoS).
+3. **Crear Backend Propio:** Se propone la creacion de un backend propio para realizar una optimizacion de consultas y mejorar la el analisis de datos que se puede hacer. 
 
----
+***
 
 ## ⚡ Conclusión del Reto
+
 Se ha logrado un sistema *End-to-End* funcional. En lugar de un simple listado con filtros, se orquestó un ecosistema productivo real donde la **Infraestructura se declara como código (Terraform)**, los **despliegues son automáticos (GitHub Actions)**, el **frontend es extremadamente ligero (Vanilla+Vite)**, y la intermitencia del servidor gubernamental se soluciona de forma elegante mediante **Proxies y Cachés (Cloud Functions+Firestore)**.
