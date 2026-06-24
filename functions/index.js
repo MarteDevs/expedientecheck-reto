@@ -131,14 +131,16 @@ exports.mefProxy = onRequest(
 
         const jsonResponse = await mefResponse.json();
 
-        // 3. Guardar la respuesta en Firestore (solo si la consulta fue exitosa)
-        if (jsonResponse.success) {
+        // 3. Guardar la respuesta en Firestore (solo si la consulta fue exitosa o tiene datos válidos)
+        if (jsonResponse.success || jsonResponse.result || Array.isArray(jsonResponse.records) || Array.isArray(jsonResponse)) {
           await cacheRef.set({
             queryParams: req.query,
             response: jsonResponse,
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
           });
           console.log(`[CACHE SAVED] Saved new data for key: ${cacheKey}`);
+        } else {
+          console.log(`[CACHE SKIPPED] Response did not look like valid data:`, JSON.stringify(jsonResponse).substring(0, 100));
         }
 
         // 4. Retornar los datos al cliente
